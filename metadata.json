@@ -1,0 +1,8 @@
+{
+  "name": "Türkwest Gayrimenkul Rapor",
+  "description": "Türkwest Gayrimenkul için özelleştirilmiş, mülk bazlı performans ve piyasa analiz raporu.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

@@ -1,0 +1,16 @@
+
+{
+  "short_name": "Türkwest",
+  "name": "Türkwest Gayrimenkul Rapor",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/602/602182.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#001E3C",
+  "background_color": "#F8FAFC"
+}
