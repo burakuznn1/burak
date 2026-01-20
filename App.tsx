@@ -193,8 +193,14 @@ const App: React.FC = () => {
       setIsAdminAuthenticated(true);
       localStorage.setItem('west_admin_auth', 'true');
       setShowLoginModal(false);
-      setActiveTab('propertyList');
+      // Eğer bekleyen talep varsa doğrudan bildirim paneline yönlendir
+      if (totalNotifications > 0) {
+        setActiveTab('notifications');
+      } else {
+        setActiveTab('propertyList');
+      }
       setLoginError(false);
+      setPasswordInput("");
     } else { setLoginError(true); }
   };
 
@@ -388,11 +394,11 @@ const App: React.FC = () => {
           <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in">
              <div className="flex justify-between items-center">
                 <h2 className="text-3xl font-black text-[#001E3C]">Müşteri Talepleri</h2>
-                <div className="px-4 py-2 bg-[#001E3C] text-white rounded-xl text-xs font-black uppercase">{totalNotifications} Aktif Talep</div>
+                <div className="px-4 py-2 bg-[#001E3C] text-white rounded-xl text-xs font-black uppercase tracking-widest">{totalNotifications} Aktif Talep</div>
              </div>
              <div className="space-y-4">
                 {allFeedbacks.length === 0 ? (
-                  <div className="bg-white p-20 rounded-[3rem] text-center border border-slate-100">
+                  <div className="bg-white p-20 rounded-[3rem] text-center border border-slate-100 shadow-sm">
                      <Inbox size={48} className="mx-auto text-slate-200 mb-4"/>
                      <p className="text-slate-400 font-bold italic">Henüz bir müşteri talebi bulunmuyor.</p>
                   </div>
@@ -400,12 +406,12 @@ const App: React.FC = () => {
                   allFeedbacks.sort((a,b) => b.date.localeCompare(a.date)).map((fb, idx) => (
                     <div key={idx} className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-md transition-all group">
                        <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-                          <div className="space-y-2">
+                          <div className="space-y-2 flex-1">
                              <div className="flex items-center gap-2">
                                <span className="px-3 py-1 bg-slate-100 text-slate-500 text-[10px] font-black rounded-full uppercase tracking-widest">{fb.date}</span>
                                <span className="px-3 py-1 bg-blue-50 text-[#001E3C] text-[10px] font-black rounded-full uppercase tracking-widest border border-blue-100">{fb.propertyTitle}</span>
                              </div>
-                             <p className="text-lg font-black text-[#001E3C]">{fb.message}</p>
+                             <p className="text-lg font-black text-[#001E3C] leading-snug">{fb.message}</p>
                              {fb.requestedPrice && (
                                <div className="inline-flex items-center gap-3 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100">
                                  <DollarSign size={16} className="bg-emerald-500 text-white rounded-full p-0.5"/>
@@ -414,14 +420,14 @@ const App: React.FC = () => {
                              )}
                           </div>
                           <div className="flex sm:flex-col gap-2 w-full sm:w-auto">
-                             <button onClick={() => { setSelectedPropertyId(fb.propertyId as string); setActiveTab('dashboard'); }} className="flex-1 sm:flex-none px-6 py-3 bg-[#001E3C] text-white rounded-xl text-xs font-black hover:bg-slate-800 transition-all">İlana Git</button>
+                             <button onClick={() => { setSelectedPropertyId(fb.propertyId as string); setActiveTab('dashboard'); }} className="flex-1 sm:flex-none px-6 py-3 bg-[#001E3C] text-white rounded-xl text-xs font-black hover:bg-slate-800 transition-all shadow-lg active:scale-95">İlana Git</button>
                              <button onClick={() => { 
                                const prop = properties.find(p => p.id === fb.propertyId);
                                if(prop) {
                                  const updatedFeedbacks = prop.clientFeedback.filter(f => f.date !== fb.date || f.message !== fb.message);
                                  setProperties(prev => prev.map(p => p.id === fb.propertyId ? { ...p, clientFeedback: updatedFeedbacks } : p));
                                }
-                             }} className="p-3 bg-red-50 text-red-400 rounded-xl hover:bg-red-500 hover:text-white transition-all"><Trash2 size={18}/></button>
+                             }} className="p-3 bg-red-50 text-red-400 rounded-xl hover:bg-red-500 hover:text-white transition-all active:scale-95"><Trash2 size={18}/></button>
                           </div>
                        </div>
                     </div>
@@ -528,7 +534,7 @@ const App: React.FC = () => {
                           </select>
                         </div>
                       </div>
-                      <button onClick={handleAddOffer} className="w-full py-4 bg-[#001E3C] text-white rounded-xl font-bold text-sm shadow-lg hover:bg-slate-800 transition-all"><Plus size={18} className="inline mr-2"/> Teklif Ekle</button>
+                      <button onClick={handleAddOffer} className="w-full py-4 bg-[#001E3C] text-white rounded-xl font-bold text-sm shadow-lg hover:bg-slate-800 transition-all active:scale-95"><Plus size={18} className="inline mr-2"/> Teklif Ekle</button>
                    </div>
                    <div className="space-y-3">
                       {currentProperty.offers?.map(offer => (
@@ -709,7 +715,7 @@ const App: React.FC = () => {
                       <label className="text-[10px] font-black text-slate-400 uppercase ml-4">Mesajınız</label>
                       <textarea value={clientNoteInput} onChange={e => setClientNoteInput(e.target.value)} placeholder="Talebinizi buraya yazın..." className="w-full h-32 p-6 bg-slate-50 border border-slate-200 rounded-[2.5rem] outline-none focus:border-[#001E3C] font-bold text-[#001E3C] resize-none" />
                     </div>
-                    <button onClick={handleAddFeedback} className="w-full py-5 bg-[#001E3C] text-white rounded-[2.5rem] font-black shadow-xl flex items-center justify-center gap-3 hover:scale-105 transition-all"><Send size={20}/> Danışmana İlet</button>
+                    <button onClick={handleAddFeedback} className="w-full py-5 bg-[#001E3C] text-white rounded-[2.5rem] font-black shadow-xl flex items-center justify-center gap-3 hover:scale-105 active:scale-95 transition-all"><Send size={20}/> Danışmana İlet</button>
                   </div>
                 )}
              </div>
@@ -721,9 +727,9 @@ const App: React.FC = () => {
             <div className="bg-white w-full max-w-sm rounded-[3rem] p-12 text-center animate-in zoom-in">
               <Lock className="text-[#001E3C] mx-auto mb-6" size={40}/><h3 className="text-2xl font-black text-[#001E3C] mb-8">Yönetici Girişi</h3>
               <form onSubmit={handleLogin} className="space-y-4">
-                <input type="password" autoFocus placeholder="Şifre" value={passwordInput} onChange={e => setPasswordInput(e.target.value)} className="w-full p-4 bg-slate-50 border-2 rounded-2xl outline-none text-center text-xl font-black tracking-widest text-[#001E3C]" />
-                <button type="submit" className="w-full py-4 bg-[#001E3C] text-white rounded-2xl font-black shadow-xl hover:bg-slate-800 transition-all">Giriş Yap</button>
-                <button type="button" onClick={() => setShowLoginModal(false)} className="text-xs font-bold text-slate-400 mt-4 uppercase">Vazgeç</button>
+                <input type="password" autoFocus placeholder="Şifre" value={passwordInput} onChange={e => setPasswordInput(e.target.value)} className="w-full p-4 bg-slate-50 border-2 rounded-2xl outline-none text-center text-xl font-black tracking-widest text-[#001E3C] shadow-inner focus:border-[#001E3C] transition-all" />
+                <button type="submit" className="w-full py-4 bg-[#001E3C] text-white rounded-2xl font-black shadow-xl hover:bg-slate-800 transition-all active:scale-95">Giriş Yap</button>
+                <button type="button" onClick={() => { setShowLoginModal(false); setPasswordInput(""); }} className="text-xs font-bold text-slate-400 mt-4 uppercase hover:text-slate-600 transition-colors">Vazgeç</button>
               </form>
             </div>
           </div>
@@ -748,12 +754,13 @@ const App: React.FC = () => {
 };
 
 const NavItem = ({ icon, label, active, onClick, badge }: any) => (
-  <button onClick={onClick} className={`w-full flex items-center justify-between px-6 py-4 rounded-2xl transition-all relative ${active ? 'bg-white/10 text-white font-black shadow-lg' : 'text-white/30 hover:bg-white/5 hover:text-white'}`}>
+  <button onClick={onClick} className={`w-full flex items-center justify-between px-6 py-4 rounded-2xl transition-all relative group ${active ? 'bg-white/10 text-white font-black shadow-lg' : 'text-white/30 hover:bg-white/5 hover:text-white'}`}>
     <div className="flex items-center gap-4">
-      {icon} <span className="text-[13px]">{label}</span>
+      <span className={`${active ? 'text-white' : 'text-white/40 group-hover:text-white'} transition-colors`}>{icon}</span>
+      <span className="text-[13px]">{label}</span>
     </div>
     {badge > 0 && (
-      <span className="flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 bg-red-500 text-white text-[10px] font-black rounded-full animate-pulse">
+      <span className="flex items-center justify-center min-w-[1.5rem] h-6 px-1.5 bg-red-500 text-white text-[10px] font-black rounded-full animate-pulse shadow-lg border border-red-400/20">
         {badge}
       </span>
     )}
@@ -781,20 +788,20 @@ const DashboardStat = ({ label, value, prevValue, icon, color }: any) => {
 const MarketMetric = ({ label, value, icon }: any) => (
   <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-all">
      <div className="w-12 h-12 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center shrink-0">{icon}</div>
-     <div><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{label}</p><h4 className="text-lg font-black text-[#001E3C] truncate">{value}</h4></div>
+     <div className="flex-1 min-w-0"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{label}</p><h4 className="text-lg font-black text-[#001E3C] truncate">{value}</h4></div>
   </div>
 );
 
 const AdminInput = ({ label, value, onChange, type = "text" }: any) => (
   <div className="space-y-1">
-    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{label}</label>
+    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">{label}</label>
     <input type={type === 'number' ? 'text' : type} value={value} onChange={(e) => {
       const v = e.target.value;
       if(type === 'number') {
         const n = v === '' ? 0 : Number(v.replace(/[^0-9]/g, ''));
         if(!isNaN(n)) onChange(n);
       } else { onChange(v); }
-    }} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:border-[#001E3C] text-[#001E3C]" />
+    }} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:border-[#001E3C] text-[#001E3C] transition-all" />
   </div>
 );
 
