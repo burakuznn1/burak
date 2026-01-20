@@ -21,6 +21,11 @@ export interface ClientFeedback {
   requestedPrice?: number;
 }
 
+export interface PricePoint {
+  date: string;
+  amount: number;
+}
+
 export interface Offer {
   id: string;
   date: string;
@@ -42,6 +47,7 @@ export interface Property {
   location: string;
   image: string;
   currentPrice: number;
+  priceHistory: PricePoint[];
   stats: PropertyStats[];
   market: MarketContext;
   agentNotes: string;
