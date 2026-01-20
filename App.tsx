@@ -9,8 +9,8 @@ import {
   TrendingDown, ArrowUpRight, Key, Menu
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { Property, PropertyStats, Offer, SurveyResponse, ClientReport } from './types';
-import { generateReportSummary } from './services/geminiService';
+import { Property, PropertyStats, Offer, SurveyResponse, ClientReport } from './types.ts';
+import { generateReportSummary } from './services/geminiService.ts';
 
 const ADMIN_PASSWORD = "west";
 

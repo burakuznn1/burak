@@ -1,6 +1,6 @@
 
 import { GoogleGenAI } from "@google/genai";
-import { ClientReport } from "../types";
+import { ClientReport } from "../types.ts";
 
 export const generateReportSummary = async (report: ClientReport): Promise<string> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
