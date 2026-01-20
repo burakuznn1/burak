@@ -5,7 +5,8 @@ import {
   Navigation, Info, Edit3, Send, Lock, CheckCircle2, Plus, Trash2, Search, 
   Home, Award, Building2, Layers, MessageCircle, RefreshCw, Settings, 
   Loader2, User, Wallet, Timer, Target, ArrowLeft, ArrowUp, ArrowDown,
-  TrendingUp, Calendar, ChevronDown, TrendingDown, History, DollarSign
+  TrendingUp, Calendar, ChevronDown, TrendingDown, History, DollarSign,
+  Bell, Inbox
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -46,7 +47,9 @@ const INITIAL_PROPERTIES: Property[] = [
       { date: '12.06.2024', amount: 18500000 }
     ],
     agentNotes: "Mülkümüz bu ay ciddi bir ivme kazandı. Gelen teklifler nakit alım üzerine yoğunlaşıyor.",
-    clientFeedback: [],
+    clientFeedback: [
+      { date: '15.06.2024', message: 'Fiyatı biraz daha esnetebilir miyiz?', requestedPrice: 18000000 }
+    ],
     offers: [
       { id: '1', date: '12.06.2024', amount: 17500000, bidder: 'A. Yılmaz', status: 'Reddedildi' },
       { id: '2', date: '15.06.2024', amount: 18100000, bidder: 'M. Kaya', status: 'Beklemede' }
@@ -66,7 +69,7 @@ const INITIAL_PROPERTIES: Property[] = [
 const App: React.FC = () => {
   const [properties, setProperties] = useState<Property[]>(INITIAL_PROPERTIES);
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(() => localStorage.getItem('west_admin_auth') === 'true');
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'propertyList' | 'cloudSettings' | 'edit'>('propertyList');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'propertyList' | 'cloudSettings' | 'edit' | 'notifications'>('propertyList');
   const [passwordInput, setPasswordInput] = useState("");
   const [clientCodeInput, setClientCodeInput] = useState("");
   const [loginError, setLoginError] = useState(false);
@@ -142,6 +145,12 @@ const App: React.FC = () => {
 
   const currentProperty = useMemo(() => properties.find(p => p.id === selectedPropertyId), [properties, selectedPropertyId]);
   const filteredProperties = useMemo(() => properties.filter(p => p.title.toLowerCase().includes(searchTerm.toLowerCase()) || p.id.toLowerCase().includes(searchTerm.toLowerCase())), [properties, searchTerm]);
+
+  const allFeedbacks = useMemo(() => {
+    return properties.flatMap(p => (p.clientFeedback || []).map(f => ({ ...f, propertyTitle: p.title, propertyId: p.id })));
+  }, [properties]);
+
+  const totalNotifications = allFeedbacks.length;
 
   const actualEndIdx = useMemo(() => {
     if (!currentProperty) return 0;
@@ -296,9 +305,10 @@ const App: React.FC = () => {
           {isAdminAuthenticated && !isClientMode ? (
             <>
               <NavItem icon={<Home size={20}/>} label="Portföy Merkezi" active={activeTab === 'propertyList'} onClick={() => setActiveTab('propertyList')} />
+              <NavItem icon={<Bell size={20}/>} label="Müşteri Talepleri" badge={totalNotifications} active={activeTab === 'notifications'} onClick={() => setActiveTab('notifications')} />
               {selectedPropertyId && (
                 <>
-                  <NavItem icon={<LayoutDashboard size={20}/>} label="Varlık Raporu" active={activeTab === 'dashboard'} onClick={() => { setActiveTab('dashboard'); }} />
+                  <NavItem icon={<LayoutDashboard size={20}/>} label="Seçili Mülk Raporu" active={activeTab === 'dashboard'} onClick={() => { setActiveTab('dashboard'); }} />
                   <NavItem icon={<Edit3 size={20}/>} label="Verileri Düzenle" active={activeTab === 'edit'} onClick={() => setActiveTab('edit')} />
                 </>
               )}
@@ -370,6 +380,53 @@ const App: React.FC = () => {
                      </div>
                   </div>
                 ))}
+             </div>
+          </div>
+        )}
+
+        {activeTab === 'notifications' && isAdminAuthenticated && (
+          <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in">
+             <div className="flex justify-between items-center">
+                <h2 className="text-3xl font-black text-[#001E3C]">Müşteri Talepleri</h2>
+                <div className="px-4 py-2 bg-[#001E3C] text-white rounded-xl text-xs font-black uppercase">{totalNotifications} Aktif Talep</div>
+             </div>
+             <div className="space-y-4">
+                {allFeedbacks.length === 0 ? (
+                  <div className="bg-white p-20 rounded-[3rem] text-center border border-slate-100">
+                     <Inbox size={48} className="mx-auto text-slate-200 mb-4"/>
+                     <p className="text-slate-400 font-bold italic">Henüz bir müşteri talebi bulunmuyor.</p>
+                  </div>
+                ) : (
+                  allFeedbacks.sort((a,b) => b.date.localeCompare(a.date)).map((fb, idx) => (
+                    <div key={idx} className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-md transition-all group">
+                       <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                          <div className="space-y-2">
+                             <div className="flex items-center gap-2">
+                               <span className="px-3 py-1 bg-slate-100 text-slate-500 text-[10px] font-black rounded-full uppercase tracking-widest">{fb.date}</span>
+                               <span className="px-3 py-1 bg-blue-50 text-[#001E3C] text-[10px] font-black rounded-full uppercase tracking-widest border border-blue-100">{fb.propertyTitle}</span>
+                             </div>
+                             <p className="text-lg font-black text-[#001E3C]">{fb.message}</p>
+                             {fb.requestedPrice && (
+                               <div className="inline-flex items-center gap-3 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100">
+                                 <DollarSign size={16} className="bg-emerald-500 text-white rounded-full p-0.5"/>
+                                 <span className="text-xs font-black uppercase">Fiyat Güncelleme İstiyor: ₺{fb.requestedPrice.toLocaleString()}</span>
+                               </div>
+                             )}
+                          </div>
+                          <div className="flex sm:flex-col gap-2 w-full sm:w-auto">
+                             <button onClick={() => { setSelectedPropertyId(fb.propertyId as string); setActiveTab('dashboard'); }} className="flex-1 sm:flex-none px-6 py-3 bg-[#001E3C] text-white rounded-xl text-xs font-black hover:bg-slate-800 transition-all">İlana Git</button>
+                             <button onClick={() => { 
+                               const prop = properties.find(p => p.id === fb.propertyId);
+                               if(prop) {
+                                 const updatedFeedbacks = prop.clientFeedback.filter(f => f.date !== fb.date || f.message !== fb.message);
+                                 setProperties(prev => prev.map(p => p.id === fb.propertyId ? { ...p, clientFeedback: updatedFeedbacks } : p));
+                               }
+                             }} className="p-3 bg-red-50 text-red-400 rounded-xl hover:bg-red-500 hover:text-white transition-all"><Trash2 size={18}/></button>
+                          </div>
+                       </div>
+                    </div>
+                  ))
+                )}
              </div>
           </div>
         )}
@@ -483,34 +540,6 @@ const App: React.FC = () => {
                            <button onClick={() => updatePropertyData('offers', currentProperty.offers.filter(o => o.id !== offer.id))} className="text-red-300 hover:text-red-500 transition-colors"><Trash2 size={16}/></button>
                         </div>
                       ))}
-                   </div>
-                </section>
-
-                <section className="space-y-6">
-                   <h3 className="text-lg font-black text-[#001E3C] border-b pb-2 flex items-center gap-2"><MessageSquare size={20}/> Müşteri Talepleri</h3>
-                   <div className="space-y-4">
-                      {(!currentProperty.clientFeedback || currentProperty.clientFeedback.length === 0) ? (
-                        <p className="text-center py-8 text-slate-400 italic font-medium">Henüz bir müşteri talebi gelmedi.</p>
-                      ) : (
-                        currentProperty.clientFeedback.map((fb, idx) => (
-                          <div key={idx} className="p-6 bg-slate-50 rounded-[2.5rem] border border-slate-200 space-y-4 relative group hover:bg-white transition-all">
-                             <div className="flex justify-between items-start">
-                               <div className="flex items-center gap-2">
-                                 <Calendar size={14} className="text-slate-400"/>
-                                 <span className="text-[10px] font-black text-slate-400 uppercase">{fb.date}</span>
-                               </div>
-                               <button onClick={() => updatePropertyData('clientFeedback', currentProperty.clientFeedback.filter((_, i) => i !== idx))} className="text-red-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={18}/></button>
-                             </div>
-                             <p className="text-sm font-bold text-[#001E3C] leading-relaxed">{fb.message}</p>
-                             {fb.requestedPrice && (
-                               <div className="inline-flex items-center gap-3 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100">
-                                 <DollarSign size={16} className="bg-emerald-500 text-white rounded-full p-0.5"/>
-                                 <span className="text-xs font-black">Müşteri Fiyat Talebi: ₺{fb.requestedPrice.toLocaleString()}</span>
-                               </div>
-                             )}
-                          </div>
-                        ))
-                      )}
                    </div>
                 </section>
 
@@ -699,14 +728,35 @@ const App: React.FC = () => {
             </div>
           </div>
         )}
+
+        {activeTab === 'cloudSettings' && isAdminAuthenticated && (
+          <div className="max-w-2xl mx-auto space-y-8 animate-in slide-in-from-bottom-10">
+             <div className="bg-[#001E3C] p-10 rounded-[3rem] text-white space-y-8 shadow-2xl relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-400 to-indigo-500"></div>
+                <h3 className="text-3xl font-black">Sistem Ayarları</h3>
+                <div className="p-6 bg-white/5 border border-white/10 rounded-2xl space-y-4">
+                   <div className="flex justify-between items-center"><span className="text-white/40 text-xs font-bold">Veri Kaynağı:</span><span className="text-emerald-400 font-mono text-xs uppercase font-black">{cloudStatus}</span></div>
+                   <div className="flex justify-between items-center"><span className="text-white/40 text-xs font-bold">Toplam Portföy:</span><span className="text-white font-black">{properties.length} Mülk</span></div>
+                </div>
+                <button onClick={() => window.location.reload()} className="w-full py-5 bg-white text-[#001E3C] rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-slate-100 transition-all active:scale-95"><RefreshCw size={20}/> Sistemi Yenile</button>
+             </div>
+          </div>
+        )}
       </main>
     </div>
   );
 };
 
-const NavItem = ({ icon, label, active, onClick }: any) => (
-  <button onClick={onClick} className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all ${active ? 'bg-white/10 text-white font-black shadow-lg' : 'text-white/30 hover:bg-white/5 hover:text-white'}`}>
-    {icon} <span className="text-[13px]">{label}</span>
+const NavItem = ({ icon, label, active, onClick, badge }: any) => (
+  <button onClick={onClick} className={`w-full flex items-center justify-between px-6 py-4 rounded-2xl transition-all relative ${active ? 'bg-white/10 text-white font-black shadow-lg' : 'text-white/30 hover:bg-white/5 hover:text-white'}`}>
+    <div className="flex items-center gap-4">
+      {icon} <span className="text-[13px]">{label}</span>
+    </div>
+    {badge > 0 && (
+      <span className="flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 bg-red-500 text-white text-[10px] font-black rounded-full animate-pulse">
+        {badge}
+      </span>
+    )}
   </button>
 );
 
