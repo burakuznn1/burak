@@ -1,14 +1,12 @@
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  LayoutDashboard, FileText, TrendingUp, LogOut, 
-  Sparkles, MapPin, MessageSquare, Eye, Heart, Navigation, Info, Edit3, Send, Lock,
-  Coins, History, CheckCircle2, Plus, Trash2, Copy, Search, Home, ChevronRight, Check, X, Award, 
-  Building2, Layers, TrendingDown, ArrowUpRight, CalendarDays, SendHorizontal, MessageCircle, 
-  Download, Upload, Cloud, ShieldCheck, Database, RefreshCw, Settings, Link as LinkIcon, Loader2, Save,
-  User, Wallet, Clock, AlertCircle, BarChart3, Timer, Target, CloudOff, MessageSquarePlus, ArrowLeft, Terminal
+  LayoutDashboard, LogOut, Sparkles, MapPin, MessageSquare, Eye, Heart, 
+  Navigation, Info, Edit3, Send, Lock, CheckCircle2, Plus, Trash2, Search, 
+  Home, Award, Building2, Layers, MessageCircle, RefreshCw, Settings, 
+  Loader2, User, Wallet, Timer, Target, ArrowLeft, ArrowUp, ArrowDown,
+  TrendingUp
 } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { createClient } from '@supabase/supabase-js';
 import { Property, PropertyStats, Offer, ClientFeedback } from './types.ts';
 import { generateReportSummary } from './services/geminiService.ts';
@@ -36,7 +34,10 @@ const INITIAL_PROPERTIES: Property[] = [
       { id: '1', date: '12.06.2024', amount: 17500000, bidder: 'A. Yılmaz', status: 'Reddedildi' },
       { id: '2', date: '15.06.2024', amount: 18100000, bidder: 'M. Kaya', status: 'Beklemede' }
     ],
-    stats: [{ month: 'Haziran', views: 820, favorites: 68, messages: 18, calls: 14, visits: 8 }],
+    stats: [
+      { month: 'Mayıs', views: 650, favorites: 42, messages: 12, calls: 10, visits: 4 },
+      { month: 'Haziran', views: 820, favorites: 68, messages: 18, calls: 14, visits: 8 }
+    ],
     market: { comparablePrice: 17800000, buildingUnitsCount: 2, neighborhoodUnitsCount: 14, avgSaleDurationDays: 45 }
   }
 ];
@@ -48,14 +49,13 @@ const App: React.FC = () => {
   const [passwordInput, setPasswordInput] = useState("");
   const [clientCodeInput, setClientCodeInput] = useState("");
   const [loginError, setLoginError] = useState(false);
-  const [clientError, setClientError] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
+  const [selectedMonthIndex, setSelectedMonthIndex] = useState<number>(-1); // -1 is latest
   const [isClientMode, setIsClientMode] = useState(false);
   const [aiSummary, setAiSummary] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
   const [isLoadingCloud, setIsLoadingCloud] = useState(false);
   const [cloudStatus, setCloudStatus] = useState<'connected' | 'error' | 'local' | 'none'>('none');
   const [cloudErrorMessage, setCloudErrorMessage] = useState<string | null>(null);
@@ -64,7 +64,6 @@ const App: React.FC = () => {
   const [clientNoteInput, setClientNoteInput] = useState("");
   const [showFeedbackSuccess, setShowFeedbackSuccess] = useState(false);
 
-  // --- SUPABASE CLIENT ---
   const supabase = useMemo(() => {
     if (SUPABASE_URL && SUPABASE_KEY) {
       try { return createClient(SUPABASE_URL, SUPABASE_KEY); } catch (e) { return null; }
@@ -72,7 +71,6 @@ const App: React.FC = () => {
     return null;
   }, []);
 
-  // --- INITIALIZATION ---
   useEffect(() => {
     const initializeData = async () => {
       setIsLoadingCloud(true);
@@ -102,17 +100,14 @@ const App: React.FC = () => {
     initializeData();
   }, [supabase]);
 
-  // --- SYNC ---
   useEffect(() => {
     if (isLoadingCloud) return;
     localStorage.setItem('west_properties', JSON.stringify(properties));
     if (supabase && (isAdminAuthenticated || isClientMode)) {
-      setIsSaving(true);
       const sync = async () => {
         try {
           await supabase.from('portfolios').upsert({ id: 'main_database', data: properties });
         } catch (e) {}
-        setIsSaving(false);
       };
       const timer = setTimeout(sync, 2000);
       return () => clearTimeout(timer);
@@ -122,7 +117,15 @@ const App: React.FC = () => {
   const currentProperty = useMemo(() => properties.find(p => p.id === selectedPropertyId), [properties, selectedPropertyId]);
   const filteredProperties = useMemo(() => properties.filter(p => p.title.toLowerCase().includes(searchTerm.toLowerCase()) || p.id.toLowerCase().includes(searchTerm.toLowerCase())), [properties, searchTerm]);
 
-  // --- HANDLERS ---
+  const actualMonthIndex = useMemo(() => {
+    if (!currentProperty) return 0;
+    if (selectedMonthIndex === -1) return currentProperty.stats.length - 1;
+    return Math.min(selectedMonthIndex, currentProperty.stats.length - 1);
+  }, [currentProperty, selectedMonthIndex]);
+
+  const latestStats = currentProperty?.stats[actualMonthIndex];
+  const previousStats = actualMonthIndex > 0 ? currentProperty?.stats[actualMonthIndex - 1] : null;
+
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (passwordInput === ADMIN_PASSWORD) {
@@ -161,7 +164,7 @@ const App: React.FC = () => {
   };
 
   const handleDeleteProperty = (id: string) => {
-    if (confirm('Bu mülkü ve tüm verilerini tamamen silmek istediğinize emin misiniz? Bu işlem geri alınamaz.')) {
+    if (confirm('Bu mülkü ve tüm verilerini tamamen silmek istediğinize emin misiniz?')) {
       setProperties(prev => prev.filter(p => p.id !== id));
       if (selectedPropertyId === id) {
         setSelectedPropertyId(null);
@@ -172,11 +175,15 @@ const App: React.FC = () => {
 
   const handleAddMonth = () => {
     if (!currentProperty) return;
-    const currentMonthName = new Date().toLocaleDateString('tr-TR', { month: 'long' });
-    const capitalizedMonth = currentMonthName.charAt(0).toUpperCase() + currentMonthName.slice(1);
+    const stats = currentProperty.stats;
+    const lastMonthName = stats[stats.length - 1].month;
+    const lastIdx = MONTHS_LIST.indexOf(lastMonthName);
+    const nextIdx = (lastIdx + 1) % 12;
+    const nextMonthName = MONTHS_LIST[nextIdx];
     
-    const newStat: PropertyStats = { month: capitalizedMonth, views: 0, favorites: 0, messages: 0, calls: 0, visits: 0 };
-    updatePropertyData('stats', [...currentProperty.stats, newStat]);
+    const newStat: PropertyStats = { month: nextMonthName, views: 0, favorites: 0, messages: 0, calls: 0, visits: 0 };
+    updatePropertyData('stats', [...stats, newStat]);
+    setSelectedMonthIndex(stats.length); // Switch to the new month
   };
 
   const handleAddFeedback = () => {
@@ -188,13 +195,10 @@ const App: React.FC = () => {
     setTimeout(() => setShowFeedbackSuccess(false), 3000);
   };
 
-  const latestStats = currentProperty?.stats[currentProperty.stats.length - 1];
-
   if (isLoadingCloud) return <div className="min-h-screen bg-[#001E3C] flex items-center justify-center text-white"><Loader2 className="animate-spin" size={40}/></div>;
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-[#F8FAFC]">
-      {/* SIDEBAR */}
       <aside className="hidden lg:flex w-72 bg-[#001E3C] text-white flex-col fixed inset-y-0 z-50">
         <div className="p-8 border-b border-white/5">
           <div className="flex items-center gap-3">
@@ -208,7 +212,7 @@ const App: React.FC = () => {
               <NavItem icon={<Home size={20}/>} label="Portföy Merkezi" active={activeTab === 'propertyList'} onClick={() => setActiveTab('propertyList')} />
               {selectedPropertyId && (
                 <>
-                  <NavItem icon={<LayoutDashboard size={20}/>} label="Varlık Raporu" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
+                  <NavItem icon={<LayoutDashboard size={20}/>} label="Varlık Raporu" active={activeTab === 'dashboard'} onClick={() => { setActiveTab('dashboard'); setSelectedMonthIndex(-1); }} />
                   <NavItem icon={<Edit3 size={20}/>} label="Verileri Düzenle" active={activeTab === 'edit'} onClick={() => setActiveTab('edit')} />
                 </>
               )}
@@ -227,10 +231,7 @@ const App: React.FC = () => {
         </div>
       </aside>
 
-      {/* MAIN CONTENT */}
       <main className="flex-1 lg:ml-72 p-4 lg:p-10 pb-20">
-        
-        {/* LANDING / CLIENT LOGIN */}
         {!selectedPropertyId && !isAdminAuthenticated && (
           <div className="min-h-[70vh] flex flex-col items-center justify-center text-center animate-in zoom-in duration-500">
              <Award className="text-[#001E3C] mb-8" size={64} />
@@ -243,7 +244,6 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* PROPERTY LIST (Admin) */}
         {activeTab === 'propertyList' && isAdminAuthenticated && (
           <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in">
              <div className="flex justify-between items-center">
@@ -252,8 +252,6 @@ const App: React.FC = () => {
                    const id = `west-${Math.floor(100+Math.random()*900)}`;
                    const currentMonth = new Date().toLocaleDateString('tr-TR', { month: 'long' });
                    const capitalizedMonth = currentMonth.charAt(0).toUpperCase() + currentMonth.slice(1);
-                   
-                   // SIFIRDAN TEMİZ İLAN OLUŞTURMA
                    const newProp: Property = { 
                      id, 
                      title: 'Yeni İlan Başlığı', 
@@ -271,22 +269,22 @@ const App: React.FC = () => {
                    setActiveTab('edit');
                 }} className="px-6 py-3 bg-[#001E3C] text-white rounded-xl font-bold flex items-center gap-2 shadow-lg"><Plus size={20}/> Yeni İlan</button>
              </div>
-             <div className="relative"><Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20}/><input type="text" placeholder="İsim veya kod ile ara..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-14 pr-6 py-4 bg-white border border-slate-200 rounded-2xl outline-none text-[#001E3C]" /></div>
+             <div className="relative">
+                <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20}/>
+                <input type="text" placeholder="İsim veya kod ile ara..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-14 pr-6 py-4 bg-white border border-slate-200 rounded-2xl outline-none text-[#001E3C] font-semibold" />
+             </div>
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredProperties.map(p => (
                   <div key={p.id} className="bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-sm hover:shadow-xl transition-all group">
                      <div className="h-48 relative overflow-hidden">
                        <img src={p.image} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                        <button onClick={(e) => { e.stopPropagation(); handleDeleteProperty(p.id); }} className="absolute top-4 right-4 p-2 bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10"><Trash2 size={16}/></button>
-                       {/* OKUNABİLİR KOD ETİKETİ */}
-                       <div className="absolute bottom-4 left-4 px-3 py-1 bg-[#001E3C] text-white rounded text-[10px] font-black shadow-lg border border-white/20">
-                         {p.id}
-                       </div>
+                       <div className="absolute bottom-4 left-4 px-3 py-1 bg-[#001E3C] text-white rounded text-[10px] font-black shadow-lg border border-white/20">{p.id}</div>
                      </div>
                      <div className="p-6 space-y-4">
                         <h4 className="font-bold text-lg text-[#001E3C] line-clamp-1">{p.title}</h4>
                         <div className="flex gap-2">
-                           <button onClick={() => { setSelectedPropertyId(p.id); setActiveTab('dashboard'); }} className="flex-1 py-3 bg-[#001E3C] text-white rounded-xl text-xs font-bold">Rapor</button>
+                           <button onClick={() => { setSelectedPropertyId(p.id); setActiveTab('dashboard'); setSelectedMonthIndex(-1); }} className="flex-1 py-3 bg-[#001E3C] text-white rounded-xl text-xs font-bold">Rapor</button>
                            <button onClick={() => { setSelectedPropertyId(p.id); setActiveTab('edit'); }} className="p-3 bg-slate-50 text-slate-400 rounded-xl hover:text-[#001E3C]"><Edit3 size={18}/></button>
                         </div>
                      </div>
@@ -296,7 +294,6 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* EDIT TAB */}
         {activeTab === 'edit' && currentProperty && (
           <div className="max-w-4xl mx-auto space-y-8 animate-in slide-in-from-right-10">
              <div className="flex justify-between items-center">
@@ -316,31 +313,35 @@ const App: React.FC = () => {
                 </section>
 
                 <section className="space-y-6">
-                   <div className="flex justify-between items-center border-b pb-2"><h3 className="text-lg font-black text-[#001E3C] flex items-center gap-2"><TrendingUp size={20}/> Performans ({latestStats?.month})</h3><button onClick={handleAddMonth} className="text-xs font-black bg-[#001E3C] text-white px-3 py-1.5 rounded-lg">Yeni Ay Ekle</button></div>
+                   <div className="flex justify-between items-center border-b pb-2">
+                      {/* Added TrendingUp icon and import to resolve "Cannot find name 'TrendingUp'" error */}
+                      <h3 className="text-lg font-black text-[#001E3C] flex items-center gap-2"><TrendingUp size={20}/> Performans ({latestStats?.month})</h3>
+                      <button onClick={handleAddMonth} className="text-xs font-black bg-[#001E3C] text-white px-3 py-1.5 rounded-lg flex items-center gap-1"><Plus size={14}/> Yeni Ay Ekle</button>
+                   </div>
                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                       <AdminInput label="Görüntü" type="number" value={latestStats?.views} onChange={(v:any) => {
                         const s = [...currentProperty.stats];
-                        s[s.length-1].views = v;
+                        s[actualMonthIndex].views = v;
                         updatePropertyData('stats', s);
                       }} />
                       <AdminInput label="Favori" type="number" value={latestStats?.favorites} onChange={(v:any) => {
                         const s = [...currentProperty.stats];
-                        s[s.length-1].favorites = v;
+                        s[actualMonthIndex].favorites = v;
                         updatePropertyData('stats', s);
                       }} />
                       <AdminInput label="Mesaj" type="number" value={latestStats?.messages} onChange={(v:any) => {
                         const s = [...currentProperty.stats];
-                        s[s.length-1].messages = v;
+                        s[actualMonthIndex].messages = v;
                         updatePropertyData('stats', s);
                       }} />
                       <AdminInput label="Arama" type="number" value={latestStats?.calls} onChange={(v:any) => {
                         const s = [...currentProperty.stats];
-                        s[s.length-1].calls = v;
+                        s[actualMonthIndex].calls = v;
                         updatePropertyData('stats', s);
                       }} />
                       <AdminInput label="Ziyaret" type="number" value={latestStats?.visits} onChange={(v:any) => {
                         const s = [...currentProperty.stats];
-                        s[s.length-1].visits = v;
+                        s[actualMonthIndex].visits = v;
                         updatePropertyData('stats', s);
                       }} />
                    </div>
@@ -371,7 +372,7 @@ const App: React.FC = () => {
                           </select>
                         </div>
                       </div>
-                      <button onClick={handleAddOffer} className="w-full py-4 bg-[#001E3C] text-white rounded-xl font-bold text-sm shadow-lg"><Plus size={18} className="inline mr-2"/> Teklif Ekle</button>
+                      <button onClick={handleAddOffer} className="w-full py-4 bg-[#001E3C] text-white rounded-xl font-bold text-sm shadow-lg hover:bg-slate-800 transition-all"><Plus size={18} className="inline mr-2"/> Teklif Ekle</button>
                    </div>
                    <div className="space-y-3">
                       {currentProperty.offers?.map(offer => (
@@ -388,18 +389,36 @@ const App: React.FC = () => {
 
                 <section className="space-y-6">
                    <h3 className="text-lg font-black text-[#001E3C] border-b pb-2 flex items-center gap-2"><MessageCircle size={20}/> Danışman Notu</h3>
-                   <textarea value={currentProperty.agentNotes} onChange={e => updatePropertyData('agentNotes', e.target.value)} placeholder="Müşterinize iletmek istediğiniz mesaj..." className="w-full h-32 p-5 bg-slate-50 border border-slate-200 rounded-2xl outline-none text-[#001E3C] font-bold" />
+                   <textarea value={currentProperty.agentNotes} onChange={e => updatePropertyData('agentNotes', e.target.value)} placeholder="Müşterinize iletmek istediğiniz mesaj..." className="w-full h-32 p-5 bg-slate-50 border border-slate-200 rounded-2xl outline-none text-[#001E3C] font-bold focus:border-[#001E3C] transition-all" />
+                </section>
+
+                <section className="space-y-6">
+                   <h3 className="text-lg font-black text-[#001E3C] border-b pb-2 flex items-center gap-2"><MessageSquare size={20}/> Müşteri Mesajları</h3>
+                   <div className="space-y-3">
+                      {currentProperty.clientFeedback?.length === 0 ? (
+                        <p className="text-center py-6 text-slate-400 font-medium italic">Henüz bir mesaj alınmadı.</p>
+                      ) : (
+                        currentProperty.clientFeedback.map((fb, i) => (
+                          <div key={i} className="p-4 bg-blue-50/50 rounded-xl border border-blue-100 flex justify-between items-start gap-4">
+                             <div className="space-y-1">
+                                <p className="text-xs font-black text-[#001E3C]/40 uppercase">{fb.date}</p>
+                                <p className="text-sm font-bold text-[#001E3C] leading-relaxed">{fb.message}</p>
+                             </div>
+                             <button onClick={() => updatePropertyData('clientFeedback', currentProperty.clientFeedback.filter((_, idx) => idx !== i))} className="text-blue-200 hover:text-red-400"><Trash2 size={14}/></button>
+                          </div>
+                        ))
+                      )}
+                   </div>
                 </section>
 
                 <div className="pt-10 flex flex-col gap-4">
-                  <button onClick={() => setActiveTab('dashboard')} className="w-full py-5 bg-[#001E3C] text-white rounded-[2rem] font-black text-lg shadow-2xl">Kaydet ve Raporu Görüntüle</button>
+                  <button onClick={() => { setActiveTab('dashboard'); setSelectedMonthIndex(-1); }} className="w-full py-5 bg-[#001E3C] text-white rounded-[2rem] font-black text-lg shadow-2xl hover:scale-[1.02] active:scale-95 transition-all">Kaydet ve Raporu Görüntüle</button>
                   <button onClick={() => handleDeleteProperty(currentProperty.id)} className="w-full py-4 text-red-500 font-bold hover:bg-red-50 rounded-2xl transition-all">İlanı Tamamen Sil</button>
                 </div>
              </div>
           </div>
         )}
 
-        {/* DASHBOARD TAB (Client View) */}
         {activeTab === 'dashboard' && currentProperty && latestStats && (
           <div className="max-w-6xl mx-auto space-y-10 animate-in fade-in duration-1000">
              <div className="flex flex-col lg:flex-row justify-between items-start gap-6">
@@ -413,11 +432,26 @@ const App: React.FC = () => {
                 </div>
                 <div className="flex gap-4 w-full lg:w-auto">
                    {isAdminAuthenticated && (
-                     <button onClick={() => setActiveTab('edit')} className="p-4 bg-white border border-slate-200 rounded-2xl shadow-sm"><Edit3 size={24}/></button>
+                     <button onClick={() => setActiveTab('edit')} className="p-4 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-all"><Edit3 size={24}/></button>
                    )}
                    <button onClick={async () => { setIsGenerating(true); setAiSummary(await generateReportSummary({ property: currentProperty, period: latestStats.month, clientName: 'Değerli Ortağımız' })); setIsGenerating(false); }} className="flex-1 lg:flex-none px-8 py-4 bg-gradient-to-r from-[#001E3C] to-[#004080] text-white rounded-2xl font-black shadow-xl hover:scale-105 transition-all flex items-center justify-center gap-3">
                      {isGenerating ? <Loader2 size={20} className="animate-spin"/> : <Sparkles size={20} className="text-amber-300"/>} AI Analizi Oluştur
                    </button>
+                </div>
+             </div>
+
+             {/* MONTH PICKER */}
+             <div className="flex items-center gap-3 overflow-x-auto pb-4 scrollbar-hide">
+                <div className="flex bg-slate-200/50 p-1.5 rounded-2xl gap-1">
+                   {currentProperty.stats.map((stat, idx) => (
+                     <button 
+                       key={idx} 
+                       onClick={() => { setSelectedMonthIndex(idx); setAiSummary(""); }}
+                       className={`px-6 py-2.5 rounded-xl text-xs font-black transition-all whitespace-nowrap ${actualMonthIndex === idx ? 'bg-[#001E3C] text-white shadow-lg' : 'text-slate-500 hover:bg-slate-300/50'}`}
+                     >
+                       {stat.month}
+                     </button>
+                   ))}
                 </div>
              </div>
 
@@ -429,10 +463,34 @@ const App: React.FC = () => {
              )}
 
              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <DashboardStat label="Görüntüleme" value={latestStats.views} icon={<Eye size={20}/>} color="blue" />
-                <DashboardStat label="Favoriye Ekleme" value={latestStats.favorites} icon={<Heart size={20}/>} color="red" />
-                <DashboardStat label="İletişim Talebi" value={latestStats.messages + latestStats.calls} icon={<MessageSquare size={20}/>} color="indigo" />
-                <DashboardStat label="Mülk Gösterimi" value={latestStats.visits} icon={<Navigation size={20}/>} color="emerald" />
+                <DashboardStat 
+                  label="Görüntüleme" 
+                  value={latestStats.views} 
+                  prevValue={previousStats?.views}
+                  icon={<Eye size={20}/>} 
+                  color="blue" 
+                />
+                <DashboardStat 
+                  label="Favori" 
+                  value={latestStats.favorites} 
+                  prevValue={previousStats?.favorites}
+                  icon={<Heart size={20}/>} 
+                  color="red" 
+                />
+                <DashboardStat 
+                  label="İletişim" 
+                  value={latestStats.messages + latestStats.calls} 
+                  prevValue={previousStats ? (previousStats.messages + previousStats.calls) : undefined}
+                  icon={<MessageSquare size={20}/>} 
+                  color="indigo" 
+                />
+                <DashboardStat 
+                  label="Gezdirme" 
+                  value={latestStats.visits} 
+                  prevValue={previousStats?.visits}
+                  icon={<Navigation size={20}/>} 
+                  color="emerald" 
+                />
              </div>
 
              <div className="space-y-6">
@@ -447,10 +505,7 @@ const App: React.FC = () => {
 
              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm space-y-8">
-                   <h4 className="text-xl font-black text-[#001E3C] flex items-center justify-between">
-                      Teklif Geçmişi 
-                      <span className="text-xs font-black bg-orange-50 text-orange-600 px-3 py-1 rounded-full">{currentProperty.offers?.length || 0} Teklif</span>
-                   </h4>
+                   <h4 className="text-xl font-black text-[#001E3C] flex items-center justify-between">Teklif Geçmişi <span className="text-xs font-black bg-orange-50 text-orange-600 px-3 py-1 rounded-full">{currentProperty.offers?.length || 0} Teklif</span></h4>
                    <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
                       {(!currentProperty.offers || currentProperty.offers.length === 0) ? (
                         <div className="text-center py-12 text-slate-300 italic font-bold">Henüz bir teklif ulaşmadı.</div>
@@ -476,7 +531,7 @@ const App: React.FC = () => {
 
                 <div className="bg-[#001E3C] p-10 rounded-[3rem] text-white space-y-6 flex flex-col justify-center">
                    <div className="flex items-center gap-3"><MessageCircle size={32} className="text-blue-400"/><h4 className="text-2xl font-black">Danışman Mesajı</h4></div>
-                   <p className="text-xl font-medium leading-relaxed italic text-white/90">"{currentProperty.agentNotes || 'Gayrimenkulünüzün satışı için dijital pazarlama ve yerel ağımızdaki çalışmalarımız tüm hızıyla sürmektedir. Her türlü sorunuz için buradayım.'}"</p>
+                   <p className="text-xl font-medium leading-relaxed italic text-white/90">"{currentProperty.agentNotes || 'Gayrimenkulünüzün satışı için dijital pazarlama çalışmalarımız tüm hızıyla sürmektedir.'}"</p>
                    <div className="pt-4 flex items-center gap-3">
                       <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center font-black text-white">TW</div>
                       <div><p className="font-black text-sm">Türkwest Gayrimenkul</p><p className="text-xs text-white/40 font-bold uppercase tracking-widest">Profesyonel Danışmanlık</p></div>
@@ -486,12 +541,12 @@ const App: React.FC = () => {
 
              <div className="bg-white p-10 lg:p-12 rounded-[3.5rem] border border-slate-200 shadow-sm space-y-8 max-w-2xl mx-auto">
                 <div className="text-center space-y-2">
-                  <h4 className="text-2xl font-black text-[#001E3C]">Mülkünüz Hakkında Bir Notunuz Var mı?</h4>
-                  <p className="text-slate-500 text-sm">Bu raporla ilgili sorularınızı veya güncel taleplerinizi doğrudan danışmanınıza iletin.</p>
+                  <h4 className="text-2xl font-black text-[#001E3C]">Bir Notunuz Var mı?</h4>
+                  <p className="text-slate-500 text-sm">Raporla ilgili güncel taleplerinizi doğrudan danışmanınıza iletin.</p>
                 </div>
                 {showFeedbackSuccess ? (
                   <div className="bg-emerald-50 text-emerald-600 p-8 rounded-[2.5rem] text-center font-bold animate-in zoom-in">
-                    <CheckCircle2 size={40} className="mx-auto mb-3"/> Mesajınız Başarıyla İletildi!
+                    <CheckCircle2 size={40} className="mx-auto mb-3"/> Mesajınız İletildi!
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -503,27 +558,6 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* CLOUD SETTINGS */}
-        {activeTab === 'cloudSettings' && isAdminAuthenticated && (
-          <div className="max-w-2xl mx-auto space-y-8 animate-in slide-in-from-bottom-10">
-             <div className="bg-[#001E3C] p-10 rounded-[3rem] text-white space-y-8 shadow-2xl">
-                <h3 className="text-3xl font-black">Sistem Ayarları</h3>
-                <div className="p-6 bg-white/5 border border-white/10 rounded-2xl space-y-4">
-                   <div className="flex justify-between items-center"><span className="text-white/40 text-xs font-bold">Veri Kaynağı:</span><span className="text-emerald-400 font-mono text-xs uppercase font-black">{cloudStatus}</span></div>
-                   <div className="space-y-1"><p className="text-[10px] text-white/40 font-bold uppercase">Endpoint</p><p className="text-xs font-mono break-all text-white/70">{SUPABASE_URL}</p></div>
-                </div>
-                {cloudErrorMessage && (
-                  <div className="p-5 bg-red-500/10 border border-red-500/20 rounded-2xl">
-                    <p className="text-red-400 text-[11px] font-mono leading-relaxed">{cloudErrorMessage}</p>
-                    <p className="mt-4 text-[10px] text-white/50">Eğer tablo hatası alıyorsanız Supabase SQL editor'den tabloyu oluşturmanız gerekir.</p>
-                  </div>
-                )}
-                <button onClick={() => window.location.reload()} className="w-full py-5 bg-white text-[#001E3C] rounded-2xl font-black flex items-center justify-center gap-2"><RefreshCw size={20}/> Bağlantıyı Yenile</button>
-             </div>
-          </div>
-        )}
-
-        {/* LOGIN MODAL */}
         {showLoginModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#001E3C]/95 backdrop-blur-xl p-4">
             <div className="bg-white w-full max-w-sm rounded-[3rem] p-12 text-center animate-in zoom-in">
@@ -537,12 +571,22 @@ const App: React.FC = () => {
             </div>
           </div>
         )}
+
+        {activeTab === 'cloudSettings' && isAdminAuthenticated && (
+          <div className="max-w-2xl mx-auto space-y-8 animate-in slide-in-from-bottom-10">
+             <div className="bg-[#001E3C] p-10 rounded-[3rem] text-white space-y-8 shadow-2xl">
+                <h3 className="text-3xl font-black">Sistem Ayarları</h3>
+                <div className="p-6 bg-white/5 border border-white/10 rounded-2xl space-y-4">
+                   <div className="flex justify-between items-center"><span className="text-white/40 text-xs font-bold">Veri Kaynağı:</span><span className="text-emerald-400 font-mono text-xs uppercase font-black">{cloudStatus}</span></div>
+                </div>
+                <button onClick={() => window.location.reload()} className="w-full py-5 bg-white text-[#001E3C] rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-slate-100 transition-all"><RefreshCw size={20}/> Bağlantıyı Yenile</button>
+             </div>
+          </div>
+        )}
       </main>
     </div>
   );
 };
-
-// --- HELPER COMPONENTS ---
 
 const NavItem = ({ icon, label, active, onClick }: any) => (
   <button onClick={onClick} className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all ${active ? 'bg-white/10 text-white font-black shadow-lg' : 'text-white/30 hover:bg-white/5 hover:text-white'}`}>
@@ -550,17 +594,33 @@ const NavItem = ({ icon, label, active, onClick }: any) => (
   </button>
 );
 
-const DashboardStat = ({ label, value, icon, color }: any) => {
+const DashboardStat = ({ label, value, prevValue, icon, color }: any) => {
   const styles: any = { 
     blue: 'bg-blue-50 text-blue-600', 
     red: 'bg-red-50 text-red-600', 
     indigo: 'bg-indigo-50 text-indigo-600', 
     emerald: 'bg-emerald-50 text-emerald-600' 
   };
+
+  const diff = prevValue !== undefined ? value - prevValue : null;
+  const isUp = diff !== null && diff > 0;
+  const isDown = diff !== null && diff < 0;
+
   return (
-    <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-4">
+    <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-4 relative group hover:shadow-md transition-all">
        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${styles[color]}`}>{icon}</div>
-       <div><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</p><h4 className="text-2xl font-black text-[#001E3C]">{Number(value).toLocaleString()}</h4></div>
+       <div className="flex flex-col">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{label}</p>
+          <div className="flex items-baseline gap-2">
+            <h4 className="text-2xl font-black text-[#001E3C]">{Number(value).toLocaleString()}</h4>
+            {diff !== null && diff !== 0 && (
+              <span className={`flex items-center text-[10px] font-black ${isUp ? 'text-emerald-500' : 'text-red-500'}`}>
+                {isUp ? <ArrowUp size={12} className="mr-0.5" /> : <ArrowDown size={12} className="mr-0.5" />}
+                {Math.abs(diff)}
+              </span>
+            )}
+          </div>
+       </div>
     </div>
   );
 };
