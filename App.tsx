@@ -6,7 +6,7 @@ import {
   Coins, History, CheckCircle2, Plus, Trash2, Copy, Search, Home, ChevronRight, Check, X, Award, 
   Building2, Layers, TrendingDown, ArrowUpRight, CalendarDays, SendHorizontal, MessageCircle, 
   Download, Upload, Cloud, ShieldCheck, Database, RefreshCw, Settings, Link as LinkIcon, Loader2, Save,
-  User, Wallet, Clock, AlertCircle, BarChart3, Timer, Target, CloudOff
+  User, Wallet, Clock, AlertCircle, BarChart3, Timer, Target, CloudOff, MessageSquarePlus, ArrowLeft
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { createClient } from '@supabase/supabase-js';
@@ -61,11 +61,13 @@ const App: React.FC = () => {
   const [cloudStatus, setCloudStatus] = useState<'connected' | 'error' | 'local' | 'none'>('none');
   
   const [newOffer, setNewOffer] = useState({ amount: '', bidder: '', status: 'Beklemede' as Offer['status'] });
+  const [clientNoteInput, setClientNoteInput] = useState("");
+  const [showFeedbackSuccess, setShowFeedbackSuccess] = useState(false);
   const hasRoutedRef = useRef(false);
 
   // --- SUPABASE CLIENT ---
   const supabase = useMemo(() => {
-    if (SUPABASE_URL && SUPABASE_KEY && !SUPABASE_KEY.startsWith('sb_')) {
+    if (SUPABASE_URL && SUPABASE_KEY) {
       try { 
         return createClient(SUPABASE_URL, SUPABASE_KEY); 
       } catch (e) { 
@@ -80,7 +82,6 @@ const App: React.FC = () => {
     const initializeData = async () => {
       setIsLoadingCloud(true);
       
-      // Try Cloud First
       if (supabase) {
         try {
           const { data, error } = await supabase
@@ -89,14 +90,17 @@ const App: React.FC = () => {
             .eq('id', 'main_database')
             .single();
           
-          if (data && data.data && !error) {
-            setProperties(data.data);
+          if (!error) {
+            if (data && data.data) setProperties(data.data);
             setCloudStatus('connected');
             setIsLoadingCloud(false);
             return;
+          } else if (error.code === 'PGRST116') {
+            // Tablo var ama satır yok (Bu bir başarılı bağlantı sayılır)
+            setCloudStatus('connected');
           } else {
-            // If table doesn't exist or key is wrong, mark as local/error
-            setCloudStatus(error ? 'error' : 'local');
+            console.warn("Supabase Fetch Error:", error);
+            setCloudStatus('error');
           }
         } catch (e) {
           setCloudStatus('error');
@@ -108,11 +112,7 @@ const App: React.FC = () => {
       // Fallback to Local Storage
       const saved = localStorage.getItem('west_properties');
       if (saved) {
-        try {
-          setProperties(JSON.parse(saved));
-        } catch(e) {
-          setProperties(INITIAL_PROPERTIES);
-        }
+        try { setProperties(JSON.parse(saved)); } catch(e) { setProperties(INITIAL_PROPERTIES); }
       } else {
         setProperties(INITIAL_PROPERTIES);
       }
@@ -147,38 +147,26 @@ const App: React.FC = () => {
 
   // --- SYNC ---
   useEffect(() => {
-    if (isClientMode || isLoadingCloud) return;
+    if (isLoadingCloud) return;
     
-    // Always save local
     localStorage.setItem('west_properties', JSON.stringify(properties));
     
-    // Try Cloud sync if admin
-    if (supabase && isAdminAuthenticated && cloudStatus === 'connected') {
+    if (supabase && (isAdminAuthenticated || isClientMode)) {
       setIsSaving(true);
       const sync = async () => {
         try {
           const { error } = await supabase.from('portfolios').upsert({ id: 'main_database', data: properties });
-          if (error) setCloudStatus('error');
-          else setCloudStatus('connected');
-        } catch (e) { setCloudStatus('error'); }
+          if (!error) setCloudStatus('connected');
+        } catch (e) { }
         setIsSaving(false);
       };
       const timer = setTimeout(sync, 2500);
       return () => clearTimeout(timer);
     }
-  }, [properties, supabase, isAdminAuthenticated, isClientMode, isLoadingCloud, cloudStatus]);
+  }, [properties, supabase, isAdminAuthenticated, isClientMode, isLoadingCloud]);
 
-  const currentProperty = useMemo(() => 
-    properties.find(p => p.id === selectedPropertyId), 
-  [properties, selectedPropertyId]);
-
-  const filteredProperties = useMemo(() => {
-    return properties.filter(p => 
-      p.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      p.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.id.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [properties, searchTerm]);
+  const currentProperty = useMemo(() => properties.find(p => p.id === selectedPropertyId), [properties, selectedPropertyId]);
+  const filteredProperties = useMemo(() => properties.filter(p => p.title.toLowerCase().includes(searchTerm.toLowerCase()) || p.location.toLowerCase().includes(searchTerm.toLowerCase()) || p.id.toLowerCase().includes(searchTerm.toLowerCase())), [properties, searchTerm]);
 
   // --- HANDLERS ---
   const handleLogin = (e: React.FormEvent) => {
@@ -251,21 +239,22 @@ const App: React.FC = () => {
 
   const handleAddOffer = () => {
     if (!currentProperty || !newOffer.amount || !newOffer.bidder) return;
-    const offer: Offer = {
-      id: Date.now().toString(),
-      date: new Date().toLocaleDateString('tr-TR'),
-      amount: Number(newOffer.amount),
-      bidder: newOffer.bidder,
-      status: newOffer.status
-    };
+    const offer: Offer = { id: Date.now().toString(), date: new Date().toLocaleDateString('tr-TR'), amount: Number(newOffer.amount), bidder: newOffer.bidder, status: newOffer.status };
     updatePropertyData('offers', [...(currentProperty.offers || []), offer]);
     setNewOffer({ amount: '', bidder: '', status: 'Beklemede' });
   };
 
-  const handleDeleteOffer = (id: string) => {
-    if (!currentProperty) return;
-    updatePropertyData('offers', currentProperty.offers.filter(o => o.id !== id));
+  const handleAddFeedback = () => {
+    if (!currentProperty || !clientNoteInput.trim()) return;
+    const feedback: ClientFeedback = { date: new Date().toLocaleDateString('tr-TR'), message: clientNoteInput.trim() };
+    updatePropertyData('clientFeedback', [...(currentProperty.clientFeedback || []), feedback]);
+    setClientNoteInput("");
+    setShowFeedbackSuccess(true);
+    setTimeout(() => setShowFeedbackSuccess(false), 4000);
   };
+
+  const handleDeleteOffer = (id: string) => { if (!currentProperty) return; updatePropertyData('offers', currentProperty.offers.filter(o => o.id !== id)); };
+  const handleDeleteFeedback = (idx: number) => { if (!currentProperty) return; updatePropertyData('clientFeedback', currentProperty.clientFeedback.filter((_, i) => i !== idx)); };
 
   const statsHistory = currentProperty?.stats || [];
   const latestStats = statsHistory[statsHistory.length - 1];
@@ -274,7 +263,7 @@ const App: React.FC = () => {
     return (
       <div className="min-h-screen bg-[#001E3C] flex flex-col items-center justify-center p-6 text-white">
         <Loader2 size={48} className="animate-spin text-emerald-400 mb-6" />
-        <h2 className="text-xl font-black tracking-widest uppercase">Türkwest Senkronizasyon</h2>
+        <h2 className="text-xl font-black tracking-widest uppercase text-center">Türkwest<br/>Veri Senkronu</h2>
       </div>
     );
   }
@@ -290,14 +279,11 @@ const App: React.FC = () => {
               <h1 className="font-black text-lg tracking-wider">TÜRKWEST</h1>
               <div className="flex items-center gap-1.5 opacity-50">
                 <div className={`w-1.5 h-1.5 rounded-full ${cloudStatus === 'connected' ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]' : cloudStatus === 'local' ? 'bg-amber-400' : 'bg-red-400 animate-pulse'}`}></div>
-                <p className="text-[8px] uppercase tracking-widest font-bold">
-                  {cloudStatus === 'connected' ? 'Bulut Aktif' : cloudStatus === 'local' ? 'Yerel Mod' : 'Bağlantı Hatası'}
-                </p>
+                <p className="text-[8px] uppercase tracking-widest font-bold">{cloudStatus === 'connected' ? 'Bulut Aktif' : cloudStatus === 'local' ? 'Yerel Mod' : 'Bağlantı Hatası'}</p>
               </div>
             </div>
           </div>
         </div>
-        
         <nav className="p-6 space-y-2 flex-1">
           {isAdminAuthenticated && !isClientMode ? (
             <>
@@ -314,34 +300,22 @@ const App: React.FC = () => {
             <NavItem icon={<LayoutDashboard size={20}/>} label="Varlık Raporu" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
           )}
         </nav>
-
         <div className="p-6 border-t border-white/5 space-y-3">
-          {isSaving && <div className="text-[10px] font-bold text-emerald-400 animate-pulse px-2 flex items-center gap-2"><RefreshCw size={12} className="animate-spin"/> Otomatik Kaydediliyor</div>}
-          {!isClientMode && (isAdminAuthenticated ? 
-             <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 py-3 bg-red-500/10 text-red-400 rounded-xl text-xs font-bold transition-all hover:bg-red-500/20"><LogOut size={16} /> Güvenli Çıkış</button>
-          : <button onClick={() => setShowLoginModal(true)} className="w-full py-3 bg-white/10 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all hover:bg-white/20"><Lock size={14} /> Yönetici Girişi</button>)}
+          {isSaving && <div className="text-[10px] font-bold text-emerald-400 animate-pulse px-2 flex items-center gap-2"><RefreshCw size={12} className="animate-spin"/> Senkronize Ediliyor</div>}
+          {!isClientMode && (isAdminAuthenticated ? <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 py-3 bg-red-500/10 text-red-400 rounded-xl text-xs font-bold transition-all hover:bg-red-500/20"><LogOut size={16} /> Güvenli Çıkış</button> : <button onClick={() => setShowLoginModal(true)} className="w-full py-3 bg-white/10 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all hover:bg-white/20"><Lock size={14} /> Yönetici Girişi</button>)}
         </div>
       </aside>
 
       {/* Main Area */}
       <main className="flex-1 lg:ml-72 p-4 lg:p-10 pb-24 overflow-x-hidden">
-        
         {/* LANDING / CLIENT LOGIN */}
         {!selectedPropertyId && !isAdminAuthenticated && !clientError && (
           <div className="min-h-[70vh] flex flex-col items-center justify-center p-6 text-center animate-in fade-in zoom-in">
-             <div className="w-24 h-24 bg-[#001E3C] rounded-[2.5rem] flex items-center justify-center mb-10 shadow-2xl animate-bounce">
-               <Award className="text-white" size={40} />
-             </div>
+             <div className="w-24 h-24 bg-[#001E3C] rounded-[2.5rem] flex items-center justify-center mb-10 shadow-2xl animate-bounce"><Award className="text-white" size={40} /></div>
              <h1 className="text-5xl font-black text-[#001E3C] mb-4 tracking-tight">Varlık Raporu</h1>
              <p className="text-xl text-slate-500 max-w-lg font-medium leading-relaxed mb-12">Gayrimenkul performans analizine erişmek için size iletilen kodu giriniz.</p>
-             <form onSubmit={(e) => { 
-               e.preventDefault(); 
-               const found = properties.find(p => p.id.toLowerCase() === clientCodeInput.toLowerCase());
-               if (found) { setSelectedPropertyId(found.id); setIsClientMode(true); setActiveTab('dashboard'); }
-               else { setClientError(true); }
-             }} className="w-full max-w-md space-y-4">
-               <input type="text" placeholder="Örn: west-101" value={clientCodeInput} onChange={e => setClientCodeInput(e.target.value)} 
-                 className="w-full px-8 py-6 bg-white border-2 border-slate-100 rounded-[2rem] outline-none text-2xl font-black text-[#001E3C] shadow-lg text-center uppercase focus:border-[#001E3C]" />
+             <form onSubmit={(e) => { e.preventDefault(); const found = properties.find(p => p.id.toLowerCase() === clientCodeInput.toLowerCase()); if (found) { setSelectedPropertyId(found.id); setIsClientMode(true); setActiveTab('dashboard'); } else { setClientError(true); } }} className="w-full max-w-md space-y-4">
+               <input type="text" placeholder="Örn: west-101" value={clientCodeInput} onChange={e => setClientCodeInput(e.target.value)} className="w-full px-8 py-6 bg-white border-2 border-slate-100 rounded-[2rem] outline-none text-2xl font-black text-[#001E3C] shadow-lg text-center uppercase focus:border-[#001E3C]" />
                <button type="submit" className="w-full py-6 bg-[#001E3C] text-white rounded-[2rem] font-black text-xl shadow-2xl hover:scale-105 transition-all">Analizi Görüntüle</button>
              </form>
           </div>
@@ -362,14 +336,11 @@ const App: React.FC = () => {
           <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4">
              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <h2 className="text-3xl font-black text-[#001E3C]">Portföy Yönetimi</h2>
-                <button onClick={handleAddNewProperty} className="px-8 py-4 bg-[#001E3C] text-white rounded-2xl font-bold flex items-center gap-3 shadow-xl hover:scale-105 transition-all">
-                  <Plus size={20}/> Yeni İlan Ekle
-                </button>
+                <button onClick={handleAddNewProperty} className="px-8 py-4 bg-[#001E3C] text-white rounded-2xl font-bold flex items-center gap-3 shadow-xl hover:scale-105 transition-all"><Plus size={20}/> Yeni İlan Ekle</button>
              </div>
              <div className="relative">
                 <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20}/>
-                <input type="text" placeholder="Mülk adı, konum veya kod ile ara..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} 
-                  className="w-full pl-14 pr-6 py-5 bg-white border border-slate-200 rounded-3xl outline-none shadow-sm focus:border-[#001E3C]" />
+                <input type="text" placeholder="Mülk adı, konum veya kod ile ara..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-14 pr-6 py-5 bg-white border border-slate-200 rounded-3xl outline-none shadow-sm focus:border-[#001E3C]" />
              </div>
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {filteredProperties.map(p => (
@@ -379,18 +350,11 @@ const App: React.FC = () => {
                         <div className="absolute top-4 right-4 px-3 py-1 bg-white/90 backdrop-blur rounded-lg text-[10px] font-black text-[#001E3C] uppercase tracking-widest">{p.id}</div>
                      </div>
                      <div className="p-8 space-y-6 flex-1 flex flex-col justify-between">
-                        <div>
-                           <h4 className="font-black text-xl text-[#001E3C] line-clamp-1 mb-2">{p.title}</h4>
-                           <p className="text-slate-500 text-sm flex items-center gap-2"><MapPin size={14}/> {p.location}</p>
-                        </div>
+                        <div><h4 className="font-black text-xl text-[#001E3C] line-clamp-1 mb-2">{p.title}</h4><p className="text-slate-500 text-sm flex items-center gap-2"><MapPin size={14}/> {p.location}</p></div>
                         <div className="flex gap-2 mt-6">
                            <button onClick={() => { setSelectedPropertyId(p.id); setActiveTab('dashboard'); }} className="flex-1 py-4 bg-[#001E3C] text-white rounded-xl text-xs font-black hover:bg-[#002B5B]">Görüntüle</button>
                            <button onClick={() => { setSelectedPropertyId(p.id); setActiveTab('edit'); }} className="p-4 bg-slate-50 text-slate-600 rounded-xl hover:bg-slate-100"><Edit3 size={18}/></button>
-                           <button onClick={() => { 
-                             const url = `${window.location.origin}${window.location.pathname}?p=${p.id}`;
-                             navigator.clipboard.writeText(url);
-                             alert("Müşteri linki kopyalandı!");
-                           }} className="p-4 bg-slate-50 text-slate-400 rounded-xl hover:text-[#001E3C]"><LinkIcon size={18}/></button>
+                           <button onClick={() => { const url = `${window.location.origin}${window.location.pathname}?p=${p.id}`; navigator.clipboard.writeText(url); alert("Müşteri linki kopyalandı!"); }} className="p-4 bg-slate-50 text-slate-400 rounded-xl hover:text-[#001E3C]"><LinkIcon size={18}/></button>
                         </div>
                      </div>
                   </div>
@@ -409,9 +373,7 @@ const App: React.FC = () => {
                    <div className="px-3 py-1 bg-slate-100 rounded-full text-[10px] font-black uppercase tracking-widest">{currentProperty.id}</div>
                 </div>
              </div>
-
              <div className="bg-white rounded-[3rem] p-10 shadow-xl border border-slate-100 space-y-12">
-                {/* Temel Bilgiler */}
                 <section className="space-y-6">
                    <h3 className="text-lg font-black text-[#001E3C] flex items-center gap-3 border-b pb-4"><Building2 size={24} className="text-[#001E3C]"/> Temel Bilgiler</h3>
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -421,8 +383,7 @@ const App: React.FC = () => {
                       <AdminInput label="Görsel URL" value={currentProperty.image} onChange={(v:any) => updatePropertyData('image', v)} />
                    </div>
                 </section>
-
-                {/* Performans Verileri */}
+                
                 <section className="space-y-6">
                    <div className="flex justify-between items-center border-b pb-4">
                       <h3 className="text-lg font-black text-[#001E3C] flex items-center gap-3"><TrendingUp size={24} className="text-emerald-500"/> Performans Verileri ({latestStats.month})</h3>
@@ -437,48 +398,50 @@ const App: React.FC = () => {
                    </div>
                 </section>
 
-                {/* Teklif Yönetimi */}
                 <section className="space-y-6">
-                   <h3 className="text-lg font-black text-[#001E3C] flex items-center gap-3 border-b pb-4"><Wallet size={24} className="text-orange-500"/> Teklif Yönetimi</h3>
-                   <div className="bg-slate-50 p-6 rounded-3xl space-y-4">
+                   <h3 className="text-lg font-black text-[#001E3C] flex items-center gap-3 border-b pb-4"><MessageSquarePlus size={24} className="text-blue-500"/> Müşteri Geri Bildirimleri</h3>
+                   <div className="space-y-3">
+                      {(!currentProperty.clientFeedback || currentProperty.clientFeedback.length === 0) ? (
+                        <p className="text-slate-400 text-xs italic p-8 text-center border-2 border-dashed border-slate-100 rounded-[2rem]">Henüz müşteriden gelen bir not bulunmuyor.</p>
+                      ) : (
+                        currentProperty.clientFeedback.map((fb, i) => (
+                           <div key={i} className="p-6 bg-slate-50 border border-slate-100 rounded-[2rem] flex justify-between items-start gap-4 animate-in slide-in-from-left-4">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <Clock size={12} className="text-slate-400"/>
+                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{fb.date}</p>
+                                </div>
+                                <p className="text-sm font-bold text-[#1E293B] leading-relaxed">{fb.message}</p>
+                              </div>
+                              <button onClick={() => handleDeleteFeedback(i)} className="p-3 bg-white text-red-300 rounded-xl hover:text-red-500 shadow-sm transition-colors"><Trash2 size={16}/></button>
+                           </div>
+                        ))
+                      )}
+                   </div>
+                </section>
+
+                <section className="space-y-6">
+                   <h3 className="text-lg font-black text-[#001E3C] flex items-center gap-3 border-b pb-4"><Wallet size={24} className="text-orange-500"/> Teklifler</h3>
+                   <div className="bg-slate-50 p-6 rounded-[2.5rem] space-y-4">
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                          <AdminInput label="Teklif Sahibi" value={newOffer.bidder} onChange={(v:any) => setNewOffer(prev => ({...prev, bidder: v}))} />
                          <AdminInput label="Tutar (₺)" type="number" value={newOffer.amount} onChange={(v:any) => setNewOffer(prev => ({...prev, amount: v}))} />
-                         <div className="space-y-1">
-                            <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Durum</label>
-                            <select value={newOffer.status} onChange={e => setNewOffer(prev => ({...prev, status: e.target.value as any}))}
-                               className="w-full p-4 rounded-2xl text-sm font-bold bg-white border border-slate-200 outline-none focus:border-[#001E3C]">
-                               <option value="Beklemede">Beklemede</option>
-                               <option value="Kabul Edildi">Kabul Edildi</option>
-                               <option value="Reddedildi">Reddedildi</option>
-                            </select>
-                         </div>
+                         <div className="space-y-1"><label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Durum</label><select value={newOffer.status} onChange={e => setNewOffer(prev => ({...prev, status: e.target.value as any}))} className="w-full p-4 rounded-2xl text-sm font-bold bg-white border border-slate-200 outline-none focus:border-[#001E3C]"><option value="Beklemede">Beklemede</option><option value="Kabul Edildi">Kabul Edildi</option><option value="Reddedildi">Reddedildi</option></select></div>
                       </div>
-                      <button onClick={handleAddOffer} className="w-full py-4 bg-orange-500 text-white rounded-2xl font-black text-sm flex items-center justify-center gap-2 shadow-lg hover:bg-orange-600 transition-colors">
-                         <Plus size={18}/> Teklif Ekle
-                      </button>
+                      <button onClick={handleAddOffer} className="w-full py-4 bg-orange-500 text-white rounded-2xl font-black text-sm flex items-center justify-center gap-2 shadow-lg hover:bg-orange-600 transition-colors"><Plus size={18}/> Teklif Ekle</button>
                    </div>
                    <div className="space-y-3">
                       {(currentProperty.offers || []).map(offer => (
                          <div key={offer.id} className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl">
-                            <div className="flex items-center gap-4">
-                               <div className={`p-2 rounded-xl ${offer.status === 'Kabul Edildi' ? 'bg-emerald-50 text-emerald-600' : offer.status === 'Reddedildi' ? 'bg-red-50 text-red-600' : 'bg-slate-50 text-slate-400'}`}>
-                                  {offer.status === 'Kabul Edildi' ? <CheckCircle2 size={18}/> : offer.status === 'Reddedildi' ? <X size={18}/> : <Clock size={18}/>}
-                               </div>
-                               <div>
-                                  <p className="font-bold text-sm text-[#001E3C]">{offer.bidder}</p>
-                                  <p className="text-[10px] text-slate-400 font-bold">₺{offer.amount.toLocaleString()} • {offer.date}</p>
-                               </div>
-                            </div>
+                            <div className="flex items-center gap-4"><div className={`p-2 rounded-xl ${offer.status === 'Kabul Edildi' ? 'bg-emerald-50 text-emerald-600' : offer.status === 'Reddedildi' ? 'bg-red-50 text-red-600' : 'bg-slate-50 text-slate-400'}`}>{offer.status === 'Kabul Edildi' ? <CheckCircle2 size={18}/> : offer.status === 'Reddedildi' ? <X size={18}/> : <Clock size={18}/>}</div><div><p className="font-bold text-sm text-[#001E3C]">{offer.bidder}</p><p className="text-[10px] text-slate-400 font-bold">₺{offer.amount.toLocaleString()} • {offer.date}</p></div></div>
                             <button onClick={() => handleDeleteOffer(offer.id)} className="p-2 text-red-300 hover:text-red-500 transition-colors"><Trash2 size={16}/></button>
                          </div>
                       ))}
                    </div>
                 </section>
 
-                {/* Piyasa Koşulları */}
                 <section className="space-y-6">
-                   <h3 className="text-lg font-black text-[#001E3C] flex items-center gap-3 border-b pb-4"><Layers size={24} className="text-indigo-500"/> Piyasa Koşulları</h3>
+                   <h3 className="text-lg font-black text-[#001E3C] flex items-center gap-3 border-b pb-4"><Layers size={24} className="text-indigo-500"/> Piyasa Analiz Verileri</h3>
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <AdminInput label="Emsal Satış Fiyatı (₺)" type="number" value={currentProperty.market.comparablePrice} onChange={(v:any) => updateMarketData('comparablePrice', v)} />
                       <AdminInput label="Ort. Satış Süresi (Gün)" type="number" value={currentProperty.market.avgSaleDurationDays} onChange={(v:any) => updateMarketData('avgSaleDurationDays', v)} />
@@ -486,21 +449,15 @@ const App: React.FC = () => {
                       <AdminInput label="Mahalledeki Diğer İlanlar" type="number" value={currentProperty.market.neighborhoodUnitsCount} onChange={(v:any) => updateMarketData('neighborhoodUnitsCount', v)} />
                    </div>
                 </section>
-
-                {/* Danışman Notu */}
+                
                 <section className="space-y-6">
                    <h3 className="text-lg font-black text-[#001E3C] flex items-center gap-3 border-b pb-4"><MessageCircle size={24} className="text-amber-500"/> Danışman Notu</h3>
-                   <textarea value={currentProperty.agentNotes} onChange={e => updatePropertyData('agentNotes', e.target.value)} 
-                     placeholder="Müşterinize bu ayki durumla ilgili ne iletmek istersiniz?"
-                     className="w-full h-40 p-6 bg-slate-50 border border-slate-200 rounded-[2rem] outline-none focus:border-[#001E3C] font-medium text-slate-600" />
+                   <textarea value={currentProperty.agentNotes} onChange={e => updatePropertyData('agentNotes', e.target.value)} placeholder="Müşterinize bu ayki durumla ilgili ne iletmek istersiniz?" className="w-full h-40 p-6 bg-slate-50 border border-slate-200 rounded-[2rem] outline-none focus:border-[#001E3C] font-medium text-slate-600 resize-none" />
                 </section>
-
+                
                 <div className="flex gap-4 pt-6">
-                   <button onClick={() => setActiveTab('dashboard')} className="flex-1 py-5 bg-[#001E3C] text-white rounded-[2rem] font-black shadow-xl flex items-center justify-center gap-3 hover:scale-105 transition-all">
-                      <Save size={20}/> Değişiklikleri Kaydet ve Önizle
-                   </button>
-                   <button onClick={() => { if(confirm('Bu ilanı tamamen silmek istediğinize emin misiniz?')) { setProperties(prev => prev.filter(p => p.id !== selectedPropertyId)); setSelectedPropertyId(null); setActiveTab('propertyList'); }}} 
-                     className="px-8 py-5 bg-red-50 text-red-500 rounded-[2rem] font-black hover:bg-red-500 hover:text-white transition-all">Sil</button>
+                   <button onClick={() => setActiveTab('dashboard')} className="flex-1 py-5 bg-[#001E3C] text-white rounded-[2rem] font-black shadow-xl flex items-center justify-center gap-3 hover:scale-105 transition-all"><Save size={20}/> Kaydet ve Önizle</button>
+                   <button onClick={() => { if(confirm('Bu ilanı tamamen silmek istediğinize emin misiniz?')) { setProperties(prev => prev.filter(p => p.id !== selectedPropertyId)); setSelectedPropertyId(null); setActiveTab('propertyList'); }}} className="px-8 py-5 bg-red-50 text-red-500 rounded-[2rem] font-black hover:bg-red-500 hover:text-white transition-all">İlanı Sil</button>
                 </div>
              </div>
           </div>
@@ -509,29 +466,24 @@ const App: React.FC = () => {
         {/* DASHBOARD TAB (Client and Admin) */}
         {activeTab === 'dashboard' && currentProperty && latestStats && (
           <div className="max-w-6xl mx-auto space-y-10 animate-in fade-in duration-700">
+             
+             {/* Admin Modunda Geri Dön Butonu */}
+             {isAdminAuthenticated && (
+                <button 
+                  onClick={() => setActiveTab('propertyList')} 
+                  className="group flex items-center gap-3 px-6 py-3 bg-white border border-slate-200 rounded-2xl text-slate-500 font-bold hover:text-[#001E3C] hover:border-[#001E3C] shadow-sm transition-all"
+                >
+                  <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" /> 
+                  Portföy Listesine Dön
+                </button>
+             )}
+
              <div className="flex flex-col lg:flex-row justify-between items-start gap-6">
-                <div className="space-y-2">
-                   <span className="inline-block px-3 py-1 bg-[#001E3C] text-white text-[10px] font-black rounded-full uppercase tracking-widest">{latestStats.month} Raporu</span>
-                   <h2 className="text-4xl font-black text-[#001E3C] tracking-tight">{currentProperty.title}</h2>
-                   <p className="flex items-center gap-2 text-slate-500 font-medium"><MapPin size={16}/> {currentProperty.location}</p>
-                </div>
-                <div className="flex gap-4 w-full lg:w-auto">
-                   {isAdminAuthenticated && (
-                     <button onClick={() => setActiveTab('edit')} className="p-4 bg-white border border-slate-200 rounded-2xl shadow-sm text-slate-600 hover:bg-slate-50 transition-colors"><Edit3 size={24}/></button>
-                   )}
-                   <button onClick={async () => { setIsGenerating(true); setAiSummary(await generateReportSummary({ property: currentProperty, period: latestStats.month, clientName: 'Değerli Ortağımız' })); setIsGenerating(false); }}
-                     className="flex-1 lg:flex-none px-8 py-4 bg-gradient-to-r from-[#001E3C] to-[#004080] text-white rounded-2xl font-bold shadow-xl hover:scale-105 transition-all flex items-center justify-center gap-3">
-                     {isGenerating ? <Loader2 size={20} className="animate-spin"/> : <Sparkles size={20} className="text-amber-400"/>} Analiz Oluştur
-                   </button>
-                </div>
+                <div className="space-y-2"><span className="inline-block px-3 py-1 bg-[#001E3C] text-white text-[10px] font-black rounded-full uppercase tracking-widest">{latestStats.month} Performans Raporu</span><h2 className="text-4xl font-black text-[#001E3C] tracking-tight">{currentProperty.title}</h2><p className="flex items-center gap-2 text-slate-500 font-medium"><MapPin size={16}/> {currentProperty.location}</p></div>
+                <div className="flex gap-4 w-full lg:w-auto">{isAdminAuthenticated && (<button onClick={() => setActiveTab('edit')} className="p-4 bg-white border border-slate-200 rounded-2xl shadow-sm text-slate-600 hover:bg-slate-50 transition-colors"><Edit3 size={24}/></button>)}<button onClick={async () => { setIsGenerating(true); setAiSummary(await generateReportSummary({ property: currentProperty, period: latestStats.month, clientName: 'Değerli Ortağımız' })); setIsGenerating(false); }} className="flex-1 lg:flex-none px-8 py-4 bg-gradient-to-r from-[#001E3C] to-[#004080] text-white rounded-2xl font-bold shadow-xl hover:scale-105 transition-all flex items-center justify-center gap-3">{isGenerating ? <Loader2 size={20} className="animate-spin"/> : <Sparkles size={20} className="text-amber-400"/>} Analiz Oluştur</button></div>
              </div>
 
-             {aiSummary && (
-               <div className="bg-white p-8 lg:p-12 rounded-[3rem] shadow-xl border border-[#001E3C]/10 animate-in slide-in-from-top-6">
-                  <h4 className="text-xl font-black text-[#001E3C] mb-6 flex items-center gap-3"><Sparkles size={24} className="text-amber-500" /> Türkwest Strateji Analizi</h4>
-                  <p className="text-slate-600 leading-relaxed font-medium whitespace-pre-line">{aiSummary}</p>
-               </div>
-             )}
+             {aiSummary && (<div className="bg-white p-8 lg:p-12 rounded-[3rem] shadow-xl border border-[#001E3C]/10 animate-in slide-in-from-top-6"><h4 className="text-xl font-black text-[#001E3C] mb-6 flex items-center gap-3"><Sparkles size={24} className="text-amber-500" /> Türkwest Strateji Analizi</h4><p className="text-slate-600 leading-relaxed font-medium whitespace-pre-line">{aiSummary}</p></div>)}
 
              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard label="Görüntü" value={latestStats.views} icon={<Eye size={20}/>} color="blue" />
@@ -541,10 +493,7 @@ const App: React.FC = () => {
              </div>
 
              <div className="space-y-6">
-                <div className="flex items-center gap-3">
-                   <div className="w-1.5 h-8 bg-[#001E3C] rounded-full"></div>
-                   <h4 className="text-2xl font-black text-[#001E3C]">Piyasa Analizi</h4>
-                </div>
+                <div className="flex items-center gap-3"><div className="w-1.5 h-8 bg-[#001E3C] rounded-full"></div><h4 className="text-2xl font-black text-[#001E3C]">Piyasa Analizi</h4></div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                    <MarketCard label="Emsal Satış Fiyatı" value={`₺${currentProperty.market.comparablePrice.toLocaleString()}`} icon={<Target size={20}/>} desc="Bölgedeki benzer mülklerin ortalaması" />
                    <MarketCard label="Ort. Satış Süresi" value={`${currentProperty.market.avgSaleDurationDays} Gün`} icon={<Timer size={20}/>} desc="Benzer mülklerin piyasada kalma süresi" />
@@ -556,52 +505,44 @@ const App: React.FC = () => {
              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div className="bg-white p-8 lg:p-10 rounded-[3rem] shadow-sm border border-slate-200/60 flex flex-col">
                    <h4 className="text-lg font-black text-[#001E3C] mb-8">İlgi Trendi</h4>
-                   <div className="h-[250px] w-full flex-1">
-                     <ResponsiveContainer width="100%" height="100%">
-                       <AreaChart data={currentProperty.stats}>
-                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
-                         <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700}} />
-                         <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700}} />
-                         <Tooltip contentStyle={{borderRadius: '12px', border: 'none'}} />
-                         <Area type="monotone" dataKey="views" stroke="#001E3C" fill="#001E3C" fillOpacity={0.05} strokeWidth={3} />
-                       </AreaChart>
-                     </ResponsiveContainer>
-                   </div>
+                   <div className="h-[250px] w-full flex-1"><ResponsiveContainer width="100%" height="100%"><AreaChart data={currentProperty.stats}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" /><XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700}} /><YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700}} /><Tooltip contentStyle={{borderRadius: '12px', border: 'none'}} /><Area type="monotone" dataKey="views" stroke="#001E3C" fill="#001E3C" fillOpacity={0.05} strokeWidth={3} /></AreaChart></ResponsiveContainer></div>
                 </div>
                 <div className="bg-white p-8 lg:p-10 rounded-[3rem] shadow-sm border border-slate-200/60">
-                   <div className="flex justify-between items-center mb-8">
-                      <h4 className="text-lg font-black text-[#001E3C]">Teklifler</h4>
-                      <div className="px-3 py-1 bg-orange-50 text-orange-600 rounded-full text-[10px] font-black uppercase tracking-widest">{currentProperty.offers?.length || 0} Aktif</div>
-                   </div>
+                   <div className="flex justify-between items-center mb-8"><h4 className="text-lg font-black text-[#001E3C]">Teklifler</h4><div className="px-3 py-1 bg-orange-50 text-orange-600 rounded-full text-[10px] font-black uppercase tracking-widest">{currentProperty.offers?.length || 0} Aktif</div></div>
                    <div className="space-y-4 max-h-[250px] overflow-y-auto pr-2">
-                      {(!currentProperty.offers || currentProperty.offers.length === 0) ? (
-                         <div className="h-full flex flex-col items-center justify-center text-slate-400 py-10 opacity-50">
-                            <Wallet size={32} className="mb-2"/><p className="text-sm font-bold uppercase tracking-wider">Henüz teklif yok</p>
-                         </div>
-                      ) : (
-                         currentProperty.offers.map(offer => (
-                            <div key={offer.id} className="flex items-center justify-between p-4 bg-slate-50/50 rounded-2xl border border-slate-100">
-                               <div className="flex items-center gap-3">
-                                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${offer.status === 'Kabul Edildi' ? 'bg-emerald-500 text-white' : 'bg-white text-slate-400 border border-slate-100'}`}><User size={18}/></div>
-                                  <div><p className="font-bold text-sm text-[#001E3C]">{offer.bidder.split(' ')[0]}***</p><p className="text-[10px] text-slate-400 font-bold">{offer.date}</p></div>
-                               </div>
-                               <div className="text-right">
-                                  <p className="font-black text-sm text-[#001E3C]">₺{offer.amount.toLocaleString()}</p>
-                                  <span className={`text-[9px] font-black uppercase tracking-widest ${offer.status === 'Kabul Edildi' ? 'text-emerald-500' : offer.status === 'Reddedildi' ? 'text-red-400' : 'text-slate-400'}`}>{offer.status}</span>
-                               </div>
-                            </div>
-                         ))
-                      )}
+                      {(!currentProperty.offers || currentProperty.offers.length === 0) ? (<div className="h-full flex flex-col items-center justify-center text-slate-400 py-10 opacity-50"><Wallet size={32} className="mb-2"/><p className="text-sm font-bold uppercase tracking-wider">Henüz teklif yok</p></div>) : (currentProperty.offers.map(offer => (<div key={offer.id} className="flex items-center justify-between p-4 bg-slate-50/50 rounded-2xl border border-slate-100"><div className="flex items-center gap-3"><div className={`w-10 h-10 rounded-xl flex items-center justify-center ${offer.status === 'Kabul Edildi' ? 'bg-emerald-500 text-white' : 'bg-white text-slate-400 border border-slate-100'}`}><User size={18}/></div><div><p className="font-bold text-sm text-[#001E3C]">{offer.bidder.split(' ')[0]}***</p><p className="text-[10px] text-slate-400 font-bold">{offer.date}</p></div></div><div className="text-right"><p className="font-black text-sm text-[#001E3C]">₺{offer.amount.toLocaleString()}</p><span className={`text-[9px] font-black uppercase tracking-widest ${offer.status === 'Kabul Edildi' ? 'text-emerald-500' : offer.status === 'Reddedildi' ? 'text-red-400' : 'text-slate-400'}`}>{offer.status}</span></div></div>)))}
                    </div>
                 </div>
              </div>
 
-             {currentProperty.agentNotes && (
-               <div className="bg-[#001E3C] p-10 lg:p-12 rounded-[3rem] text-white space-y-6">
-                  <h4 className="text-xl font-black flex items-center gap-3"><MessageCircle size={24}/> Danışman Notu</h4>
-                  <p className="text-white/80 leading-relaxed font-medium text-lg italic">"{currentProperty.agentNotes}"</p>
+             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+               {currentProperty.agentNotes && (
+                 <div className="bg-[#001E3C] p-10 lg:p-12 rounded-[3rem] text-white space-y-6">
+                    <h4 className="text-xl font-black flex items-center gap-3"><MessageCircle size={24}/> Danışman Notu</h4>
+                    <p className="text-white/80 leading-relaxed font-medium text-lg italic">"{currentProperty.agentNotes}"</p>
+                 </div>
+               )}
+
+               {/* Müşteri Not Bırakma Alanı */}
+               <div className="bg-white p-10 lg:p-12 rounded-[3rem] border border-slate-200 shadow-sm space-y-6">
+                  <h4 className="text-xl font-black text-[#001E3C] flex items-center gap-3"><MessageSquarePlus size={24}/> Rapor Hakkında Notunuz</h4>
+                  {showFeedbackSuccess ? (
+                    <div className="bg-emerald-50 border border-emerald-100 p-8 rounded-[2.5rem] text-emerald-600 font-bold text-center animate-in zoom-in">
+                      <div className="w-16 h-16 bg-emerald-500 text-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-200">
+                        <Check size={32}/>
+                      </div>
+                      <p className="text-lg">Teşekkürler!</p>
+                      <p className="text-xs text-emerald-500/70 font-medium">Notunuz başarıyla danışmanınıza iletildi.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <p className="text-xs text-slate-400 font-medium leading-relaxed">Danışmanınıza iletmek istediğiniz soru veya mülkünüzle ilgili güncel görüşlerinizi buraya yazabilirsiniz.</p>
+                      <textarea value={clientNoteInput} onChange={e => setClientNoteInput(e.target.value)} placeholder="Görüşlerinizi yazın..." className="w-full h-32 p-5 bg-slate-50 border border-slate-200 rounded-[2rem] outline-none focus:border-[#001E3C] font-medium text-slate-600 resize-none transition-all" />
+                      <button onClick={handleAddFeedback} className="w-full py-5 bg-[#001E3C] text-white rounded-[2rem] font-black shadow-xl flex items-center justify-center gap-2 hover:bg-[#002B5B] hover:scale-[1.02] active:scale-95 transition-all"><Send size={18}/> Danışmana Gönder</button>
+                    </div>
+                  )}
                </div>
-             )}
+             </div>
           </div>
         )}
 
@@ -609,29 +550,7 @@ const App: React.FC = () => {
         {activeTab === 'cloudSettings' && isAdminAuthenticated && (
           <div className="max-w-2xl mx-auto space-y-8 animate-in slide-in-from-bottom-6">
              <div className="bg-[#001E3C] p-10 lg:p-12 rounded-[3.5rem] text-white space-y-8 shadow-2xl relative overflow-hidden">
-                <Cloud size={100} className="absolute -right-10 -bottom-10 opacity-10" />
-                <h3 className="text-3xl font-black">Sistem Altyapısı</h3>
-                <div className="p-6 bg-white/5 border border-white/10 rounded-2xl space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-white/40 text-xs font-bold">Bağlantı Durumu:</span>
-                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${cloudStatus === 'connected' ? 'bg-emerald-500 text-white' : cloudStatus === 'local' ? 'bg-amber-500 text-white' : 'bg-red-500 text-white'}`}>
-                      {cloudStatus === 'connected' ? 'BULUT AKTİF' : cloudStatus === 'local' ? 'YEREL DEPOLAMA' : 'BAĞLANTI HATASI'}
-                    </span>
-                  </div>
-                  {cloudStatus === 'connected' && (
-                    <div className="space-y-1">
-                      <p className="text-[10px] text-white/40 font-bold uppercase">Veri Havuzu</p>
-                      <p className="text-xs font-mono break-all">{SUPABASE_URL}</p>
-                    </div>
-                  )}
-                  {cloudStatus === 'error' && (
-                    <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-3">
-                       <CloudOff size={18} className="text-red-400" />
-                       <p className="text-[10px] font-bold text-red-400">Bulut bağlantısı kurulamadı. Verileriniz tarayıcıya (Local Storage) kaydediliyor.</p>
-                    </div>
-                  )}
-                </div>
-                <button onClick={() => window.location.reload()} className="w-full py-4 bg-white/10 text-white rounded-2xl font-black hover:bg-white/20 transition-all">Bağlantıyı Yenile</button>
+                <Cloud size={100} className="absolute -right-10 -bottom-10 opacity-10" /><h3 className="text-3xl font-black">Sistem Altyapısı</h3><div className="p-6 bg-white/5 border border-white/10 rounded-2xl space-y-4"><div className="flex justify-between items-center"><span className="text-white/40 text-xs font-bold">Bağlantı Durumu:</span><span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${cloudStatus === 'connected' ? 'bg-emerald-500 text-white' : cloudStatus === 'local' ? 'bg-amber-400 text-white' : 'bg-red-500 text-white'}`}>{cloudStatus === 'connected' ? 'BULUT AKTİF' : cloudStatus === 'local' ? 'YEREL DEPOLAMA' : 'BAĞLANTI HATASI'}</span></div>{cloudStatus === 'connected' && (<div className="space-y-1"><p className="text-[10px] text-white/40 font-bold uppercase">Veri Havuzu</p><p className="text-xs font-mono break-all">{SUPABASE_URL}</p></div>)}{cloudStatus === 'error' && (<div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-3"><CloudOff size={18} className="text-red-400" /><p className="text-[10px] font-bold text-red-400">Bulut bağlantısı kurulamadı. Verileriniz tarayıcıya (Local Storage) kaydediliyor.</p></div>)}</div><button onClick={() => window.location.reload()} className="w-full py-4 bg-white/10 text-white rounded-2xl font-black hover:bg-white/20 transition-all">Bağlantıyı Yenile</button>
              </div>
           </div>
         )}
@@ -643,8 +562,7 @@ const App: React.FC = () => {
               <div className="w-16 h-16 bg-[#001E3C] rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl text-white"><Lock size={28}/></div>
               <h3 className="text-2xl font-black text-[#001E3C] mb-8">Sistem Girişi</h3>
               <form onSubmit={handleLogin} className="space-y-4">
-                <input type="password" autoFocus placeholder="Şifre" value={passwordInput} onChange={e => setPasswordInput(e.target.value)} 
-                  className={`w-full p-4 bg-slate-50 border-2 rounded-2xl outline-none text-center text-xl font-black tracking-[0.5em] transition-all ${loginError ? 'border-red-500 bg-red-50' : 'border-slate-100 focus:border-[#001E3C]'}`} />
+                <input type="password" autoFocus placeholder="Şifre" value={passwordInput} onChange={e => setPasswordInput(e.target.value)} className={`w-full p-4 bg-slate-50 border-2 rounded-2xl outline-none text-center text-xl font-black tracking-[0.5em] transition-all ${loginError ? 'border-red-500 bg-red-50' : 'border-slate-100 focus:border-[#001E3C]'}`} />
                 {loginError && <p className="text-red-500 text-xs font-bold animate-shake">Hatalı şifre!</p>}
                 <button type="submit" className="w-full py-4 bg-[#001E3C] text-white rounded-2xl font-black shadow-xl hover:bg-[#002B5B] transition-all">Giriş Yap</button>
                 <button type="button" onClick={() => setShowLoginModal(false)} className="text-xs font-bold text-slate-400 mt-4 uppercase hover:text-slate-600 transition-colors">Vazgeç</button>
@@ -689,35 +607,10 @@ const MarketCard = ({ label, value, icon, desc }: any) => (
 
 const AdminInput = ({ label, value, onChange, type = "text", dark = false }: any) => {
   const inputRef = useRef<HTMLInputElement>(null);
-  
-  const handleSelect = (e: React.FocusEvent<HTMLInputElement> | React.MouseEvent<HTMLInputElement>) => {
-    e.currentTarget.select(); 
-  };
-
-  const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.currentTarget.value;
-    if (type === 'number') {
-      const num = val === '' ? 0 : Number(val);
-      if (!isNaN(num)) onChange(num);
-    } else {
-      onChange(val);
-    }
-  };
-
+  const handleSelect = (e: React.FocusEvent<HTMLInputElement> | React.MouseEvent<HTMLInputElement>) => { e.currentTarget.select(); };
+  const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => { const val = e.currentTarget.value; if (type === 'number') { const num = val === '' ? 0 : Number(val); if (!isNaN(num)) onChange(num); } else { onChange(val); } };
   return (
-    <div className="space-y-1">
-      <label className={`text-[9px] font-black uppercase tracking-widest ${dark ? 'text-white/40' : 'text-slate-400'}`}>{label}</label>
-      <input 
-        ref={inputRef}
-        type={type === 'number' ? 'text' : type} 
-        inputMode={type === 'number' ? 'numeric' : 'text'}
-        value={value} 
-        onFocus={handleSelect} 
-        onClick={handleSelect} 
-        onChange={handleValueChange} 
-        className={`w-full p-4 rounded-2xl text-sm font-bold outline-none transition-all ${dark ? 'bg-white/5 border-white/10 text-white focus:border-emerald-400' : 'bg-slate-50 border-slate-200 text-[#001E3C] focus:border-[#001E3C]'}`} 
-      />
-    </div>
+    <div className="space-y-1"><label className={`text-[9px] font-black uppercase tracking-widest ${dark ? 'text-white/40' : 'text-slate-400'}`}>{label}</label><input ref={inputRef} type={type === 'number' ? 'text' : type} inputMode={type === 'number' ? 'numeric' : 'text'} value={value} onFocus={handleSelect} onClick={handleSelect} onChange={handleValueChange} className={`w-full p-4 rounded-2xl text-sm font-bold outline-none transition-all ${dark ? 'bg-white/5 border-white/10 text-white focus:border-emerald-400' : 'bg-slate-50 border-slate-200 text-[#001E3C] focus:border-[#001E3C]'}`} /></div>
   );
 };
 
