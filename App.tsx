@@ -6,7 +6,7 @@ import {
   Eye, Heart, Navigation, Clock, Info, Save, Edit3, Send, Lock, Unlock,
   Coins, ClipboardCheck, History, CheckCircle2, XCircle, ThumbsUp, Plus, Trash2, Copy, 
   ExternalLink, Search, Home, Tag, ChevronRight, Check, X, Award, Share2, Building2, Layers,
-  TrendingDown, ArrowUpRight, Key, Menu
+  TrendingDown, ArrowUpRight, Key, Menu, Image as ImageIcon
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Property, PropertyStats, Offer, SurveyResponse, ClientReport } from './types.ts';
@@ -48,8 +48,11 @@ const App: React.FC = () => {
     return saved ? JSON.parse(saved) : INITIAL_PROPERTIES;
   });
 
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(() => {
+    return localStorage.getItem('west_admin_auth') === 'true';
+  });
+
   const [activeTab, setActiveTab] = useState<'dashboard' | 'admin' | 'notes' | 'propertyList'>('dashboard');
-  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
   const [passwordInput, setPasswordInput] = useState("");
   const [clientCodeInput, setClientCodeInput] = useState("");
   const [loginError, setLoginError] = useState(false);
@@ -62,9 +65,11 @@ const App: React.FC = () => {
   const [aiSummary, setAiSummary] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [newOffer, setNewOffer] = useState({ 
-    amount: 0, bidder: "", date: new Date().toISOString().split('T')[0], status: 'Beklemede' as any
-  });
+
+  // New offer form state
+  const [newOfferAmount, setNewOfferAmount] = useState("");
+  const [newOfferBidder, setNewOfferBidder] = useState("");
+  const [newOfferDate, setNewOfferDate] = useState(new Date().toISOString().split('T')[0]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -93,12 +98,21 @@ const App: React.FC = () => {
     e.preventDefault();
     if (passwordInput === ADMIN_PASSWORD) {
       setIsAdminAuthenticated(true);
+      localStorage.setItem('west_admin_auth', 'true');
       setShowLoginModal(false);
       setLoginError(false);
       setActiveTab('propertyList');
       setIsClientMode(false);
       setPasswordInput("");
     } else { setLoginError(true); }
+  };
+
+  const handleLogout = () => {
+    setIsAdminAuthenticated(false);
+    localStorage.removeItem('west_admin_auth');
+    setActiveTab('propertyList');
+    setSelectedPropertyId(null);
+    setIsClientMode(false);
   };
 
   const handleClientAccess = (e: React.FormEvent) => {
@@ -120,37 +134,58 @@ const App: React.FC = () => {
     setProperties(prev => prev.map(p => p.id === updated.id ? updated : p));
   };
 
-  const deleteOffer = (offerId: string) => {
-    if (!currentProperty) return;
-    const updated = { ...currentProperty, offers: currentProperty.offers.filter(o => o.id !== offerId) };
-    updateProperty(updated);
-  };
-
-  const updateOfferStatus = (offerId: string, status: any) => {
-    if (!currentProperty) return;
-    const updated = { ...currentProperty, offers: currentProperty.offers.map(o => o.id === offerId ? { ...o, status } : o) };
-    updateProperty(updated);
-  };
-
   const handleAddProperty = () => {
     const newId = `west-${Math.floor(1000 + Math.random() * 9000)}`;
     const newProperty: Property = {
       id: newId,
-      title: 'Yeni Portföy İsmi',
-      location: 'Konum Giriniz',
+      title: 'Yeni İlan İsmi',
+      location: 'Konum Bilgisi',
       image: 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=1000&q=80',
       currentPrice: 0,
       agentNotes: "",
       clientFeedback: [],
       offers: [],
       stats: [
-        { month: 'Haz', views: 0, favorites: 0, messages: 0, calls: 0, visits: 0 }
+        { month: new Date().toLocaleString('tr-TR', { month: 'short' }), views: 0, favorites: 0, messages: 0, calls: 0, visits: 0 }
       ],
       market: { comparablePrice: 0, buildingUnitsCount: 0, neighborhoodUnitsCount: 0, avgSaleDurationDays: 0 }
     };
-    setProperties([...properties, newProperty]);
+    setProperties([newProperty, ...properties]);
     setSelectedPropertyId(newId);
     setActiveTab('admin');
+  };
+
+  const handleAddOffer = () => {
+    if (!currentProperty || !newOfferAmount || !newOfferBidder) return;
+    const newOffer: Offer = {
+      id: Math.random().toString(36).substr(2, 9),
+      amount: Number(newOfferAmount),
+      bidder: newOfferBidder,
+      date: newOfferDate,
+      status: 'Beklemede'
+    };
+    updateProperty({
+      ...currentProperty,
+      offers: [newOffer, ...currentProperty.offers]
+    });
+    setNewOfferAmount("");
+    setNewOfferBidder("");
+  };
+
+  const handleDeleteOffer = (offerId: string) => {
+    if (!currentProperty) return;
+    updateProperty({
+      ...currentProperty,
+      offers: currentProperty.offers.filter(o => o.id !== offerId)
+    });
+  };
+
+  const handleUpdateOfferStatus = (offerId: string, status: Offer['status']) => {
+    if (!currentProperty) return;
+    updateProperty({
+      ...currentProperty,
+      offers: currentProperty.offers.map(o => o.id === offerId ? { ...o, status } : o)
+    });
   };
 
   const filteredProperties = properties.filter(p => 
@@ -159,18 +194,8 @@ const App: React.FC = () => {
     p.id.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const getLatestStats = () => {
-    if (!currentProperty) return null;
-    return currentProperty.stats[currentProperty.stats.length - 1];
-  };
-
-  const getPreviousStats = () => {
-    if (!currentProperty || currentProperty.stats.length < 2) return null;
-    return currentProperty.stats[currentProperty.stats.length - 2];
-  };
-
-  const stats = getLatestStats();
-  const prevStats = getPreviousStats();
+  const stats = currentProperty?.stats[currentProperty.stats.length - 1];
+  const prevStats = currentProperty && currentProperty.stats.length > 1 ? currentProperty.stats[currentProperty.stats.length - 2] : null;
 
   const calculateChange = (current: number, previous: number | undefined) => {
     if (!previous || previous === 0) return null;
@@ -214,18 +239,13 @@ const App: React.FC = () => {
 
         <div className="p-6 border-t border-white/5">
           {isAdminAuthenticated ? (
-             <button onClick={() => { setIsAdminAuthenticated(false); setActiveTab('propertyList'); setSelectedPropertyId(null); setIsClientMode(false); }} className="w-full flex items-center justify-center gap-2 py-3 bg-red-500/10 text-red-400 rounded-xl text-xs font-bold hover:bg-red-500/20 transition-all">
+             <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 py-3 bg-red-500/10 text-red-400 rounded-xl text-xs font-bold hover:bg-red-500/20 transition-all">
                 <LogOut size={16} /> Güvenli Çıkış
              </button>
           ) : !isClientMode && (
             <button onClick={() => setShowLoginModal(true)} className="w-full py-3 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2">
               <Lock size={14} /> Yönetici Girişi
             </button>
-          )}
-          {isClientMode && (
-             <button onClick={() => { setIsClientMode(false); setSelectedPropertyId(null); }} className="w-full py-3 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2">
-               <X size={14} /> Rapordan Ayrıl
-             </button>
           )}
         </div>
       </aside>
@@ -238,7 +258,7 @@ const App: React.FC = () => {
         </div>
         <div className="flex items-center gap-2">
           {isAdminAuthenticated && (
-            <button onClick={() => { setIsAdminAuthenticated(false); setActiveTab('propertyList'); setSelectedPropertyId(null); }} className="p-2 bg-red-500/20 text-red-400 rounded-lg">
+            <button onClick={handleLogout} className="p-2 bg-red-500/20 text-red-400 rounded-lg">
               <LogOut size={18} />
             </button>
           )}
@@ -247,26 +267,19 @@ const App: React.FC = () => {
               <Lock size={18} />
             </button>
           )}
-          {isClientMode && (
-             <button onClick={() => { setIsClientMode(false); setSelectedPropertyId(null); }} className="p-2 bg-white/10 rounded-lg">
-               <X size={18} />
-             </button>
-          )}
         </div>
       </header>
 
       {/* Main Content */}
       <main className="flex-1 lg:ml-72 p-4 lg:p-10 pb-24 lg:pb-10 overflow-x-hidden">
-        {/* Dashboard View */}
         {activeTab === 'dashboard' && currentProperty && stats && (
           <div className="max-w-6xl mx-auto space-y-6 lg:space-y-10 animate-in fade-in duration-700">
             <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-6">
               <div className="space-y-2">
                 <span className="inline-block px-3 py-1 bg-[#001E3C] text-white text-[10px] font-black rounded-full uppercase tracking-widest">Performans Analizi</span>
-                <h2 className="text-2xl lg:text-4xl font-black text-[#001E3C] tracking-tight leading-tight">{currentProperty.title}</h2>
-                <div className="flex flex-wrap items-center gap-3 lg:gap-4 text-slate-500 text-sm font-medium">
-                  <span className="flex items-center gap-1.5"><MapPin size={16} className="text-[#001E3C]"/> {currentProperty.location}</span>
-                  <span className="hidden lg:block w-1 h-1 rounded-full bg-slate-300"></span>
+                <h2 className="text-2xl lg:text-4xl font-black text-[#001E3C] tracking-tight">{currentProperty.title}</h2>
+                <div className="flex flex-wrap items-center gap-3 text-slate-500 text-sm font-medium">
+                  <span className="flex items-center gap-1.5"><MapPin size={16}/> {currentProperty.location}</span>
                   <span className="font-black text-[#001E3C] text-lg">₺{currentProperty.currentPrice.toLocaleString()}</span>
                 </div>
               </div>
@@ -278,7 +291,6 @@ const App: React.FC = () => {
               </button>
             </div>
 
-            {/* Core Statistics Grid */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-6">
               <StatCard label="Görüntü" value={stats.views} change={calculateChange(stats.views, prevStats?.views)} icon={<Eye size={20}/>} color="blue" />
               <StatCard label="Favori" value={stats.favorites} change={calculateChange(stats.favorites, prevStats?.favorites)} icon={<Heart size={20}/>} color="red" />
@@ -286,44 +298,34 @@ const App: React.FC = () => {
               <StatCard label="Gezme" value={stats.visits} change={calculateChange(stats.visits, prevStats?.visits)} icon={<Navigation size={20}/>} color="emerald" />
             </div>
 
-            {/* Charts and Market Info */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
                <div className="lg:col-span-2 space-y-6 lg:space-y-8">
-                  {/* Chart */}
-                  <div className="bg-white p-6 lg:p-10 rounded-[2rem] lg:rounded-[2.5rem] shadow-sm border border-slate-200/60">
-                    <div className="mb-6 lg:mb-8">
-                        <h4 className="text-lg lg:text-xl font-black text-[#001E3C]">İlgi Trendi</h4>
-                        <p className="text-xs text-slate-400 font-medium">Aylık performans değişimi</p>
-                    </div>
-                    <div className="h-[250px] lg:h-[350px] w-full">
+                  <div className="bg-white p-6 lg:p-10 rounded-[2rem] shadow-sm border border-slate-200/60">
+                    <div className="mb-6"><h4 className="text-lg font-black text-[#001E3C]">İlgi Trendi</h4></div>
+                    <div className="h-[250px] w-full">
                       <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={currentProperty.stats}>
-                          <defs>
-                            <linearGradient id="colorViews" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#3B82F6" stopOpacity={0.1}/><stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/></linearGradient>
-                            <linearGradient id="colorFavs" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#EF4444" stopOpacity={0.1}/><stop offset="95%" stopColor="#EF4444" stopOpacity={0}/></linearGradient>
-                          </defs>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
                           <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700, fill: '#94A3B8'}} />
                           <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700, fill: '#94A3B8'}} />
-                          <Tooltip contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', fontSize: '12px'}} />
-                          <Area name="Görüntüleme" type="monotone" dataKey="views" stroke="#3B82F6" strokeWidth={3} fillOpacity={1} fill="url(#colorViews)" />
-                          <Area name="Favori" type="monotone" dataKey="favorites" stroke="#EF4444" strokeWidth={3} fillOpacity={1} fill="url(#colorFavs)" />
+                          <Tooltip contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'}} />
+                          <Area type="monotone" dataKey="views" stroke="#3B82F6" strokeWidth={3} fill="#3B82F6" fillOpacity={0.05} />
+                          <Area type="monotone" dataKey="favorites" stroke="#EF4444" strokeWidth={3} fill="#EF4444" fillOpacity={0.05} />
                         </AreaChart>
                       </ResponsiveContainer>
                     </div>
                   </div>
 
-                  {/* Offers */}
-                  <div className="bg-white p-6 lg:p-10 rounded-[2rem] lg:rounded-[2.5rem] shadow-sm border border-slate-200/60">
-                    <div className="flex items-center justify-between mb-6 lg:mb-8">
-                       <h4 className="text-lg lg:text-xl font-black text-[#001E3C] flex items-center gap-2"><Coins size={20} className="text-amber-500"/> Teklifler</h4>
+                  <div className="bg-white p-6 lg:p-10 rounded-[2rem] shadow-sm border border-slate-200/60">
+                    <div className="flex items-center justify-between mb-6">
+                       <h4 className="text-lg font-black text-[#001E3C] flex items-center gap-2"><Coins size={20} className="text-amber-500"/> Teklifler</h4>
                        <span className="px-3 py-1 bg-slate-100 text-slate-500 rounded-lg text-[10px] font-black uppercase">{currentProperty.offers.length} TOPLAM</span>
                     </div>
-                    <div className="space-y-3 lg:space-y-4">
+                    <div className="space-y-4">
                       {currentProperty.offers.length > 0 ? currentProperty.offers.map(offer => (
-                        <div key={offer.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 lg:p-6 bg-slate-50 rounded-2xl lg:rounded-[2rem] border border-transparent gap-3 lg:gap-0">
-                          <div className="flex items-center gap-4 lg:gap-6">
-                            <div className="p-3 lg:p-4 bg-white rounded-xl shadow-sm"><History size={20} className="text-[#001E3C]"/></div>
+                        <div key={offer.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-6 bg-slate-50 rounded-[2rem] border border-transparent">
+                          <div className="flex items-center gap-4">
+                            <div className="p-4 bg-white rounded-xl shadow-sm"><History size={20} className="text-[#001E3C]"/></div>
                             <div>
                               <p className="text-lg lg:text-2xl font-black text-[#001E3C]">₺{offer.amount.toLocaleString()}</p>
                               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{offer.date} • {offer.bidder}</p>
@@ -334,60 +336,33 @@ const App: React.FC = () => {
                             offer.status === 'Kabul Edildi' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'
                           }`}>{offer.status}</span>
                         </div>
-                      )) : <p className="text-center py-6 text-slate-400 italic text-sm font-medium">Teklif bulunmamaktadır.</p>}
+                      )) : <p className="text-center py-6 text-slate-400 italic text-sm">Henüz teklif bulunmamaktadır.</p>}
                     </div>
                   </div>
                </div>
 
-               {/* Right Column / Mobile Scroll Order */}
-               <div className="space-y-6 lg:space-y-8">
-                  {/* Market Analysis */}
-                  <div className="bg-[#001E3C] p-6 lg:p-8 rounded-[2rem] lg:rounded-[2.5rem] text-white space-y-6 shadow-xl relative overflow-hidden">
+               <div className="space-y-6">
+                  <div className="bg-[#001E3C] p-6 lg:p-8 rounded-[2rem] text-white space-y-6 shadow-xl relative overflow-hidden">
                      <Building2 size={80} className="absolute -right-5 -bottom-5 opacity-10" />
-                     <h4 className="text-base lg:text-lg font-black flex items-center gap-2"><TrendingUp size={20} className="text-emerald-400"/> Piyasa Konumu</h4>
+                     <h4 className="text-lg font-black flex items-center gap-2"><TrendingUp size={20} className="text-emerald-400"/> Piyasa Konumu</h4>
                      <div className="space-y-3 relative z-10">
                         <MarketCard icon={<Building2 size={16}/>} label="Binadaki İlanlar" value={currentProperty.market.buildingUnitsCount} />
                         <MarketCard icon={<Layers size={16}/>} label="Mahalledeki İlanlar" value={currentProperty.market.neighborhoodUnitsCount} />
                         <MarketCard icon={<Clock size={16}/>} label="Satış Süresi" value={`${currentProperty.market.avgSaleDurationDays} Gün`} />
                         <div className="pt-4 border-t border-white/10">
                            <p className="text-[10px] text-white/50 uppercase font-black tracking-widest mb-1">Emsal Fiyat</p>
-                           <p className="text-lg lg:text-xl font-black">₺{currentProperty.market.comparablePrice.toLocaleString()}</p>
+                           <p className="text-xl font-black">₺{currentProperty.market.comparablePrice.toLocaleString()}</p>
                         </div>
-                     </div>
-                  </div>
-
-                  {/* Survey Responses */}
-                  <div className="bg-white p-6 lg:p-8 rounded-[2rem] lg:rounded-[2.5rem] shadow-sm border border-slate-200/60">
-                    <h4 className="text-base lg:text-lg font-black text-[#001E3C] mb-6 flex items-center gap-2"><ClipboardCheck size={20} className="text-blue-500"/> Pazar Algısı</h4>
-                    {currentProperty.surveyResponse ? (
-                      <div className="space-y-5">
-                        <ScoreMeter label="Fiyat Memnuniyeti" score={currentProperty.surveyResponse.priceSatisfaction} />
-                        <ScoreMeter label="Ödeme Şartları" score={currentProperty.surveyResponse.paymentTermsSatisfaction} />
-                        <ScoreMeter label="Sunum & Kalite" score={currentProperty.surveyResponse.presentationSatisfaction} />
-                      </div>
-                    ) : <p className="text-center py-6 text-xs text-slate-400 italic">Analiz aşamasında...</p>}
-                  </div>
-
-                  {/* Agent Contact Card */}
-                  <div className="bg-emerald-500 p-6 rounded-[2rem] text-white flex items-center gap-4 shadow-lg shadow-emerald-500/20">
-                     <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center"><Phone size={24}/></div>
-                     <div>
-                        <p className="text-[10px] font-black uppercase tracking-widest opacity-80">Danışman Desteği</p>
-                        <p className="font-bold text-lg leading-tight">İletişime Geç</p>
                      </div>
                   </div>
                </div>
             </div>
 
-            {/* AI Analysis Summary */}
             {aiSummary && (
-              <div className="bg-white p-8 lg:p-12 rounded-[2rem] lg:rounded-[3.5rem] border-2 border-[#001E3C]/5 shadow-xl relative overflow-hidden group">
-                 <div className="absolute top-0 right-0 p-6 text-[#001E3C]/5 group-hover:scale-110 transition-transform"><Sparkles size={100} /></div>
-                 <div className="relative z-10 space-y-6">
-                    <h3 className="text-xl lg:text-2xl font-black text-[#001E3C] flex items-center gap-3"><Sparkles size={24} className="text-amber-500"/> AI Strateji Raporu</h3>
-                    <div className="text-base lg:text-lg leading-relaxed text-slate-700 font-medium whitespace-pre-wrap border-l-4 border-[#001E3C] pl-6 lg:pl-8">
-                      {aiSummary}
-                    </div>
+              <div className="bg-white p-8 lg:p-12 rounded-[2rem] border-2 border-[#001E3C]/5 shadow-xl">
+                 <h3 className="text-xl lg:text-2xl font-black text-[#001E3C] flex items-center gap-3 mb-6"><Sparkles size={24} className="text-amber-500"/> AI Strateji Raporu</h3>
+                 <div className="text-base lg:text-lg leading-relaxed text-slate-700 font-medium whitespace-pre-wrap border-l-4 border-[#001E3C] pl-6 lg:pl-8">
+                   {aiSummary}
                  </div>
               </div>
             )}
@@ -396,20 +371,17 @@ const App: React.FC = () => {
 
         {/* Admin Property List */}
         {activeTab === 'propertyList' && isAdminAuthenticated && (
-          <div className="max-w-6xl mx-auto space-y-6 lg:space-y-8 animate-in fade-in duration-500">
+          <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500">
             <header className="flex flex-col gap-6">
-              <div>
-                <h2 className="text-3xl lg:text-4xl font-black text-[#001E3C] tracking-tight">Portföy Merkezi</h2>
-                <p className="text-slate-500 mt-2 font-medium">Aktif ilanlarınızı yönetin.</p>
-              </div>
+              <h2 className="text-3xl font-black text-[#001E3C]">Portföy Merkezi</h2>
               <div className="flex flex-col md:flex-row gap-4">
                  <div className="relative flex-1">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
                     <input type="text" placeholder="İlan ara..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-12 pr-6 py-4 bg-white border border-slate-200 rounded-2xl outline-none focus:border-[#001E3C] transition-all font-medium text-sm"
+                      className="w-full pl-12 pr-6 py-4 bg-white border border-slate-200 rounded-2xl outline-none focus:border-[#001E3C]"
                     />
                  </div>
-                 <button onClick={handleAddProperty} className="w-full md:w-auto px-8 py-4 bg-[#001E3C] text-white rounded-2xl font-bold shadow-xl flex items-center justify-center gap-2">
+                 <button onClick={handleAddProperty} className="px-8 py-4 bg-[#001E3C] text-white rounded-2xl font-bold shadow-xl flex items-center justify-center gap-2">
                     <Plus size={20}/> Yeni İlan
                  </button>
               </div>
@@ -417,23 +389,23 @@ const App: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
               {filteredProperties.map(p => (
-                <div key={p.id} className="group bg-white rounded-[2rem] overflow-hidden border border-slate-200/60 shadow-sm transition-all relative">
-                   <div className="h-48 lg:h-52 relative overflow-hidden">
-                      <img src={p.image} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="" />
-                      <div className="absolute top-4 right-4 px-3 py-1 bg-[#001E3C] text-white rounded-full text-[10px] font-black uppercase tracking-tighter">KOD: {p.id}</div>
-                   </div>
+                <div key={p.id} className="bg-white rounded-[2rem] overflow-hidden border border-slate-200/60 shadow-sm relative group">
+                   <img src={p.image} className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-500" alt="" />
                    <div className="p-6 lg:p-8 space-y-6">
                       <div>
-                        <h4 className="font-black text-lg text-[#001E3C] truncate">{p.title}</h4>
+                        <div className="flex justify-between items-start">
+                           <h4 className="font-black text-lg text-[#001E3C] truncate">{p.title}</h4>
+                           <span className="text-[10px] font-black text-slate-400 uppercase">#{p.id}</span>
+                        </div>
                         <p className="text-xs text-slate-400 font-bold flex items-center gap-1 mt-1"><MapPin size={12}/> {p.location}</p>
                       </div>
                       <div className="flex gap-2">
-                        <button onClick={() => { setSelectedPropertyId(p.id); setActiveTab('dashboard'); }} className="flex-1 py-3 bg-slate-50 text-slate-600 rounded-xl text-[10px] lg:text-[11px] font-bold hover:bg-blue-50 hover:text-blue-600 transition-all">Analiz</button>
-                        <button onClick={() => { setSelectedPropertyId(p.id); setActiveTab('admin'); }} className="flex-1 py-3 bg-slate-50 text-slate-600 rounded-xl text-[10px] lg:text-[11px] font-bold hover:bg-amber-50 hover:text-amber-600 transition-all">Düzenle</button>
+                        <button onClick={() => { setSelectedPropertyId(p.id); setActiveTab('dashboard'); }} className="flex-1 py-3 bg-slate-50 text-slate-600 rounded-xl text-[10px] font-bold hover:bg-blue-50 transition-colors">Analiz</button>
+                        <button onClick={() => { setSelectedPropertyId(p.id); setActiveTab('admin'); }} className="flex-1 py-3 bg-slate-50 text-slate-600 rounded-xl text-[10px] font-bold hover:bg-amber-50 transition-colors">Düzenle</button>
                         <button onClick={() => { 
                           const url = `${window.location.origin}${window.location.pathname}?p=${p.id}`;
                           navigator.clipboard.writeText(url);
-                          alert(`Rapor linki kopyalandı!`);
+                          alert(`Müşteri rapor linki kopyalandı!`);
                         }} className="p-3 bg-slate-50 text-slate-400 rounded-xl hover:text-emerald-500 transition-all"><Copy size={16}/></button>
                       </div>
                    </div>
@@ -445,19 +417,94 @@ const App: React.FC = () => {
 
         {/* Admin Data Entry Panel */}
         {activeTab === 'admin' && currentProperty && (
-           <div className="max-w-4xl mx-auto space-y-6 lg:space-y-10 pb-10 lg:pb-20 animate-in slide-in-from-bottom-8">
-              <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
-                 <div>
-                    <h3 className="text-2xl lg:text-3xl font-black text-[#001E3C]">Veri Yönetimi</h3>
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Kod: {currentProperty.id}</p>
-                 </div>
-                 <button onClick={() => setActiveTab('propertyList')} className="self-start px-4 py-2 text-slate-400 font-bold hover:text-slate-600 transition-all flex items-center gap-2"><ChevronRight className="rotate-180" size={18}/> Listeye Dön</button>
+           <div className="max-w-4xl mx-auto space-y-10 animate-in slide-in-from-bottom-8">
+              <div className="flex justify-between items-center">
+                 <h3 className="text-3xl font-black text-[#001E3C]">İlanı Düzenle</h3>
+                 <button onClick={() => setActiveTab('propertyList')} className="px-4 py-2 text-slate-400 font-bold flex items-center gap-2 hover:text-[#001E3C] transition-all"><ChevronRight className="rotate-180" size={18}/> Listeye Dön</button>
               </div>
 
-              {/* Form Cards */}
-              <div className="space-y-4 lg:space-y-6">
-                <div className="bg-white p-6 lg:p-10 rounded-[2rem] lg:rounded-[3rem] shadow-sm border border-slate-200/60 space-y-6">
-                   <h4 className="font-black text-xs text-slate-400 uppercase tracking-widest flex items-center gap-2"><TrendingUp size={16} className="text-[#001E3C]"/> Performans Verileri</h4>
+              <div className="space-y-8">
+                {/* General Info */}
+                <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-200/60 space-y-6">
+                   <h4 className="font-black text-xs text-slate-400 uppercase tracking-widest flex items-center gap-2"><Info size={16} className="text-[#001E3C]"/> Temel Bilgiler</h4>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <AdminInput label="İlan Başlığı" value={currentProperty.title} onChange={v => updateProperty({...currentProperty, title: v})} />
+                      <AdminInput label="Konum" value={currentProperty.location} onChange={v => updateProperty({...currentProperty, location: v})} />
+                      <div className="md:col-span-2">
+                         <AdminInput label="İlan Görseli (URL)" value={currentProperty.image} onChange={v => updateProperty({...currentProperty, image: v})} />
+                      </div>
+                      <AdminInput label="Güncel Fiyat (₺)" value={currentProperty.currentPrice} type="number" onChange={v => updateProperty({...currentProperty, currentPrice: Number(v)})} />
+                      <AdminInput label="Emsal Fiyat (₺)" value={currentProperty.market.comparablePrice} type="number" onChange={v => updateProperty({...currentProperty, market: {...currentProperty.market, comparablePrice: Number(v)}})} />
+                   </div>
+                </div>
+
+                {/* Offer Management */}
+                <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-200/60 space-y-8">
+                   <h4 className="font-black text-xs text-slate-400 uppercase tracking-widest flex items-center gap-2"><Coins size={16} className="text-[#001E3C]"/> Teklif Yönetimi</h4>
+                   
+                   <div className="p-6 bg-slate-50 rounded-[2rem] space-y-4">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Yeni Teklif Ekle</p>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                         <AdminInput label="Teklif Tutarı (₺)" value={newOfferAmount} type="number" onChange={setNewOfferAmount} />
+                         <AdminInput label="Teklif Sahibi" value={newOfferBidder} onChange={setNewOfferBidder} />
+                         <AdminInput label="Tarih" value={newOfferDate} type="date" onChange={setNewOfferDate} />
+                      </div>
+                      <button onClick={handleAddOffer} className="w-full py-4 bg-[#001E3C] text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-[#002B5B] transition-all"><Plus size={18}/> Teklifi Listeye Ekle</button>
+                   </div>
+
+                   <div className="space-y-3">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mevcut Teklifler & Durum</p>
+                      {currentProperty.offers.length > 0 ? currentProperty.offers.map(offer => (
+                         <div key={offer.id} className="flex flex-col sm:flex-row items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl gap-4">
+                            <div className="flex-1">
+                               <p className="font-black text-[#001E3C]">₺{offer.amount.toLocaleString()}</p>
+                               <p className="text-[10px] font-bold text-slate-400 uppercase">{offer.bidder} • {offer.date}</p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                               <select 
+                                  value={offer.status} 
+                                  onChange={(e) => handleUpdateOfferStatus(offer.id, e.target.value as any)}
+                                  className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-[10px] font-black uppercase text-[#001E3C] outline-none"
+                               >
+                                  <option value="Beklemede">Beklemede</option>
+                                  <option value="Reddedildi">Reddedildi</option>
+                                  <option value="Kabul Edildi">Kabul Edildi</option>
+                               </select>
+                               <button onClick={() => handleDeleteOffer(offer.id)} className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18}/></button>
+                            </div>
+                         </div>
+                      )) : <p className="text-center py-4 text-xs text-slate-400 italic">Henüz teklif eklenmedi.</p>}
+                   </div>
+                </div>
+
+                {/* Market Context - KAYBOLAN PANEL GERİ GELDİ */}
+                <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-200/60 space-y-6">
+                   <h4 className="font-black text-xs text-slate-400 uppercase tracking-widest flex items-center gap-2"><Building2 size={16} className="text-[#001E3C]"/> Piyasa Durumu</h4>
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <AdminInput 
+                        label="Binadaki Satılık Sayısı" 
+                        value={currentProperty.market.buildingUnitsCount} 
+                        type="number" 
+                        onChange={v => updateProperty({...currentProperty, market: {...currentProperty.market, buildingUnitsCount: Number(v)}})} 
+                      />
+                      <AdminInput 
+                        label="Mahalledeki Satılık Sayısı" 
+                        value={currentProperty.market.neighborhoodUnitsCount} 
+                        type="number" 
+                        onChange={v => updateProperty({...currentProperty, market: {...currentProperty.market, neighborhoodUnitsCount: Number(v)}})} 
+                      />
+                      <AdminInput 
+                        label="Ortalama Satış Süresi (Gün)" 
+                        value={currentProperty.market.avgSaleDurationDays} 
+                        type="number" 
+                        onChange={v => updateProperty({...currentProperty, market: {...currentProperty.market, avgSaleDurationDays: Number(v)}})} 
+                      />
+                   </div>
+                </div>
+
+                {/* Performance Stats */}
+                <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-200/60 space-y-6">
+                   <h4 className="font-black text-xs text-slate-400 uppercase tracking-widest flex items-center gap-2"><TrendingUp size={16} className="text-[#001E3C]"/> Performans Verileri (Cari Ay)</h4>
                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                       <AdminInput label="Görüntü" value={currentProperty.stats[currentProperty.stats.length-1].views} type="number" onChange={v => { const s = [...currentProperty.stats]; s[s.length-1].views = Number(v); updateProperty({...currentProperty, stats: s}); }} />
                       <AdminInput label="Favori" value={currentProperty.stats[currentProperty.stats.length-1].favorites} type="number" onChange={v => { const s = [...currentProperty.stats]; s[s.length-1].favorites = Number(v); updateProperty({...currentProperty, stats: s}); }} />
@@ -466,20 +513,11 @@ const App: React.FC = () => {
                       <AdminInput label="Ziyaret" value={currentProperty.stats[currentProperty.stats.length-1].visits} type="number" onChange={v => { const s = [...currentProperty.stats]; s[s.length-1].visits = Number(v); updateProperty({...currentProperty, stats: s}); }} />
                    </div>
                 </div>
-
-                <div className="bg-white p-6 lg:p-10 rounded-[2rem] lg:rounded-[3rem] shadow-sm border border-slate-200/60 space-y-6">
-                   <h4 className="font-black text-xs text-slate-400 uppercase tracking-widest flex items-center gap-2"><Building2 size={16} className="text-[#001E3C]"/> Piyasa Durumu</h4>
-                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <AdminInput label="Binadaki İlanlar" value={currentProperty.market.buildingUnitsCount} type="number" onChange={v => updateProperty({...currentProperty, market: {...currentProperty.market, buildingUnitsCount: Number(v)}})} />
-                      <AdminInput label="Mahalledeki İlanlar" value={currentProperty.market.neighborhoodUnitsCount} type="number" onChange={v => updateProperty({...currentProperty, market: {...currentProperty.market, neighborhoodUnitsCount: Number(v)}})} />
-                      <AdminInput label="Satış Süresi (Gün)" value={currentProperty.market.avgSaleDurationDays} type="number" onChange={v => updateProperty({...currentProperty, market: {...currentProperty.market, avgSaleDurationDays: Number(v)}})} />
-                   </div>
-                </div>
               </div>
 
-              <div className="flex flex-col lg:flex-row gap-4">
-                 <button onClick={() => setActiveTab('dashboard')} className="flex-1 py-4 lg:py-5 bg-[#001E3C] text-white rounded-2xl lg:rounded-[2rem] font-black shadow-xl">Kaydet ve Görüntüle</button>
-                 <button onClick={() => setActiveTab('notes')} className="flex-1 py-4 lg:py-5 bg-slate-100 text-[#001E3C] rounded-2xl lg:rounded-[2rem] font-black">Strateji Notu Yaz</button>
+              <div className="flex flex-col sm:flex-row gap-4">
+                 <button onClick={() => setActiveTab('dashboard')} className="flex-1 py-5 bg-[#001E3C] text-white rounded-[2rem] font-black shadow-xl hover:bg-[#002B5B] transition-all">Önizle ve Kaydet</button>
+                 <button onClick={() => setActiveTab('notes')} className="flex-1 py-5 bg-slate-100 text-[#001E3C] rounded-[2rem] font-black hover:bg-slate-200 transition-all">Strateji Notu Yaz</button>
               </div>
            </div>
         )}
@@ -487,56 +525,45 @@ const App: React.FC = () => {
         {/* Strategy Notes Panel */}
         {activeTab === 'notes' && currentProperty && (
           <div className="max-w-4xl mx-auto space-y-6 animate-in slide-in-from-bottom-6">
-             <div className="bg-white p-6 lg:p-12 rounded-[2rem] lg:rounded-[3.5rem] shadow-sm border border-slate-200/60 space-y-6 lg:space-y-8">
-                <h3 className="text-2xl lg:text-3xl font-black text-[#001E3C]">Strateji & Notlar</h3>
+             <div className="bg-white p-6 lg:p-12 rounded-[2rem] lg:rounded-[3.5rem] shadow-sm border border-slate-200/60 space-y-8">
+                <h3 className="text-3xl font-black text-[#001E3C]">Strateji & Notlar</h3>
                 <textarea value={currentProperty.agentNotes} onChange={e => updateProperty({...currentProperty, agentNotes: e.target.value})} 
-                  className="w-full h-64 lg:h-80 p-6 lg:p-10 bg-slate-50 rounded-2xl lg:rounded-[2.5rem] border-2 border-slate-100 focus:border-[#001E3C] outline-none text-base lg:text-xl font-medium leading-relaxed" 
-                  placeholder="Mülk sahibi için görüşlerinizi yazın..." 
+                  className="w-full h-80 p-6 lg:p-10 bg-slate-50 rounded-[2.5rem] border-2 border-slate-100 focus:border-[#001E3C] outline-none text-xl font-medium leading-relaxed" 
+                  placeholder="Mülk sahibi için stratejik görüşlerinizi ve pazar analizlerinizi buraya yazın..." 
                 />
-                <button onClick={() => setActiveTab('dashboard')} className="w-full py-4 lg:py-5 bg-[#001E3C] text-white rounded-2xl font-black shadow-xl">Kaydet ve Geri Dön</button>
+                <button onClick={() => setActiveTab('dashboard')} className="w-full py-5 bg-[#001E3C] text-white rounded-[2rem] font-black shadow-xl hover:bg-[#002B5B] transition-all">Kaydet ve Raporu Gör</button>
              </div>
           </div>
         )}
 
-        {/* Client Access Landing */}
+        {/* Access screen and Login Modal */}
         {!selectedPropertyId && !isAdminAuthenticated && (
-          <div className="min-h-[80vh] flex flex-col items-center justify-center p-4 lg:p-6 animate-in fade-in duration-1000">
-             <div className="w-20 lg:w-24 h-20 lg:h-24 bg-[#001E3C] rounded-[2rem] lg:rounded-[2.5rem] flex items-center justify-center mb-8 lg:mb-10 shadow-2xl">
+          <div className="min-h-[80vh] flex flex-col items-center justify-center p-6 animate-in fade-in duration-1000">
+             <div className="w-24 h-24 bg-[#001E3C] rounded-[2.5rem] flex items-center justify-center mb-10 shadow-2xl">
                <Award className="text-white" size={40} />
              </div>
-             <h1 className="text-3xl lg:text-5xl font-black text-[#001E3C] mb-4 text-center tracking-tight">Performans Raporu</h1>
-             <p className="text-base lg:text-xl text-slate-500 max-w-lg font-medium leading-relaxed text-center mb-8 lg:mb-12">Gayrimenkulünüzün aylık performans analizini görüntülemek için rapor kodunuzu giriniz.</p>
-             
+             <h1 className="text-5xl font-black text-[#001E3C] mb-4 text-center tracking-tight">Performans Raporu</h1>
+             <p className="text-xl text-slate-500 max-w-lg font-medium leading-relaxed text-center mb-12">Gayrimenkulünüzün aylık performans analizini görüntülemek için rapor kodunuzu giriniz.</p>
              <form onSubmit={handleClientAccess} className="w-full max-w-md space-y-4">
-               <div className="relative">
-                  <Key className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
-                  <input type="text" placeholder="Rapor Kodu (Örn: west-101)" value={clientCodeInput} onChange={(e) => setClientCodeInput(e.target.value)}
-                    className={`w-full pl-12 pr-6 py-5 lg:py-6 bg-white border-2 ${clientError ? 'border-red-500 animate-shake' : 'border-slate-100'} rounded-2xl lg:rounded-[2rem] outline-none text-lg lg:text-xl font-black text-[#001E3C] shadow-lg focus:border-[#001E3C] transition-all`}
-                  />
-                  {clientError && <p className="absolute -bottom-6 left-5 text-red-500 text-[10px] font-black uppercase">Geçersiz Kod</p>}
-               </div>
-               <button type="submit" className="w-full py-5 lg:py-6 bg-[#001E3C] text-white rounded-2xl lg:rounded-[2rem] font-black text-lg lg:text-xl shadow-2xl flex items-center justify-center gap-2">
-                 Analizi Görüntüle <ChevronRight size={20}/>
-               </button>
+               <input type="text" placeholder="Rapor Kodu (Örn: west-101)" value={clientCodeInput} onChange={(e) => setClientCodeInput(e.target.value)}
+                 className={`w-full px-8 py-6 bg-white border-2 ${clientError ? 'border-red-500 animate-shake' : 'border-slate-100'} rounded-[2rem] outline-none text-xl font-black text-[#001E3C] shadow-lg focus:border-[#001E3C] text-center`}
+               />
+               <button type="submit" className="w-full py-6 bg-[#001E3C] text-white rounded-[2rem] font-black text-xl shadow-2xl hover:scale-105 transition-transform active:scale-95">Analizi Görüntüle</button>
              </form>
-
              <button onClick={() => setShowLoginModal(true)} className="mt-12 text-xs font-bold text-slate-400 uppercase tracking-widest hover:text-[#001E3C] transition-colors">Yönetici Girişi</button>
           </div>
         )}
 
-        {/* Login Modal */}
         {showLoginModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#001E3C]/95 backdrop-blur-xl p-4">
-            <div className="bg-white w-full max-w-sm rounded-[2.5rem] lg:rounded-[3rem] shadow-2xl p-8 lg:p-12 text-center animate-in zoom-in duration-300">
-              <div className="w-16 h-16 lg:w-20 lg:h-20 bg-[#001E3C] rounded-2xl lg:rounded-3xl flex items-center justify-center mx-auto mb-6 lg:mb-8 shadow-xl"><Lock className="text-white" size={28} /></div>
-              <h3 className="text-xl lg:text-2xl font-black text-[#001E3C] mb-2">Sistem Girişi</h3>
-              <p className="text-xs lg:text-sm text-slate-400 font-medium mb-8">Lütfen yönetici şifrenizi girin.</p>
+            <div className="bg-white w-full max-w-sm rounded-[3rem] shadow-2xl p-12 text-center animate-in zoom-in duration-300">
+              <h3 className="text-2xl font-black text-[#001E3C] mb-8">Sistem Girişi</h3>
               <form onSubmit={handleLogin} className="space-y-4">
-                <input type="password" autoFocus placeholder="••••" value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)}
+                <input type="password" autoFocus placeholder="Şifre" value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)}
                   className={`w-full p-4 bg-slate-50 border-2 ${loginError ? 'border-red-500 animate-pulse' : 'border-slate-100'} rounded-2xl outline-none text-center text-xl font-black tracking-[0.5em] text-[#001E3C]`}
                 />
-                <button type="submit" className="w-full py-4 bg-[#001E3C] text-white rounded-2xl font-black shadow-xl">Giriş Yap</button>
-                <button type="button" onClick={() => setShowLoginModal(false)} className="text-xs font-bold text-slate-400 hover:text-slate-600 mt-4 uppercase">Kapat</button>
+                <button type="submit" className="w-full py-4 bg-[#001E3C] text-white rounded-2xl font-black shadow-xl hover:bg-[#002B5B] transition-all">Giriş Yap</button>
+                <button type="button" onClick={() => setShowLoginModal(false)} className="text-xs font-bold text-slate-400 mt-4 uppercase hover:text-slate-600 transition-colors">Kapat</button>
               </form>
             </div>
           </div>
@@ -546,91 +573,64 @@ const App: React.FC = () => {
       {/* Mobile Bottom Navigation */}
       {(isAdminAuthenticated || isClientMode) && (
         <nav className="lg:hidden fixed bottom-0 inset-x-0 bg-white border-t border-slate-100 px-6 py-3 flex justify-around items-center z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
-           {isClientMode ? (
-             <MobileNavItem icon={<LayoutDashboard size={20}/>} active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
-           ) : (
-             <>
-               <MobileNavItem icon={<Home size={20}/>} active={activeTab === 'propertyList'} onClick={() => setActiveTab('propertyList')} />
-               {selectedPropertyId && (
-                 <>
-                   <MobileNavItem icon={<Edit3 size={20}/>} active={activeTab === 'admin'} onClick={() => setActiveTab('admin')} />
-                   <MobileNavItem icon={<Sparkles size={20}/>} active={activeTab === 'notes'} onClick={() => setActiveTab('notes')} />
-                   <MobileNavItem icon={<Eye size={20}/>} active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
-                 </>
-               )}
-             </>
-           )}
+           <MobileNavItem icon={<Home size={20}/>} active={activeTab === 'propertyList'} onClick={() => setActiveTab('propertyList')} />
+           {selectedPropertyId && <MobileNavItem icon={<Edit3 size={20}/>} active={activeTab === 'admin'} onClick={() => setActiveTab('admin')} />}
+           {selectedPropertyId && <MobileNavItem icon={<Sparkles size={20}/>} active={activeTab === 'notes'} onClick={() => setActiveTab('notes')} />}
+           {selectedPropertyId && <MobileNavItem icon={<Eye size={20}/>} active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />}
         </nav>
       )}
-
-      <style>{`
-        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
-        .animate-shake { animation: shake 0.2s ease-in-out 0s 2; }
-      `}</style>
     </div>
   );
 };
 
 // UI Components
 const NavItem = ({ icon, label, active, onClick }: any) => (
-  <button onClick={onClick} className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all ${active ? 'bg-white/10 text-white font-black shadow-xl border border-white/10' : 'text-white/30 hover:bg-white/5 hover:text-white font-medium'}`}>
+  <button onClick={onClick} className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all ${active ? 'bg-white/10 text-white font-black shadow-lg border border-white/5' : 'text-white/30 hover:bg-white/5 hover:text-white'}`}>
     {icon} <span className="text-[13px]">{label}</span>
   </button>
 );
 
 const MobileNavItem = ({ icon, active, onClick }: any) => (
-  <button onClick={onClick} className={`p-3 rounded-xl transition-all ${active ? 'bg-[#001E3C] text-white' : 'text-slate-300'}`}>
+  <button onClick={onClick} className={`p-3 rounded-xl transition-all ${active ? 'bg-[#001E3C] text-white scale-110' : 'text-slate-300 hover:text-slate-400'}`}>
     {icon}
   </button>
 );
 
 const StatCard = ({ label, value, change, icon, color }: any) => {
   const colors: any = { blue: 'bg-blue-50 text-blue-600', red: 'bg-red-50 text-red-600', indigo: 'bg-indigo-50 text-indigo-600', emerald: 'bg-emerald-50 text-emerald-600' };
-  const isPositive = change ? parseFloat(change) >= 0 : true;
   return (
-    <div className="bg-white p-4 lg:p-6 rounded-2xl lg:rounded-[2.5rem] border border-slate-200/60 shadow-sm flex flex-col space-y-2 lg:space-y-3 relative overflow-hidden group">
+    <div className="bg-white p-6 rounded-[2rem] lg:rounded-[2.5rem] border border-slate-200/60 shadow-sm space-y-3 hover:shadow-md transition-shadow">
        <div className="flex justify-between items-start">
-          <div className={`w-10 h-10 lg:w-12 lg:h-12 rounded-xl lg:rounded-2xl flex items-center justify-center ${colors[color]}`}>{icon}</div>
-          {change && (
-            <div className={`flex items-center gap-0.5 text-[8px] lg:text-[10px] font-black px-1.5 py-0.5 rounded-lg ${isPositive ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
-               %{Math.abs(parseFloat(change))}
-            </div>
-          )}
+          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${colors[color]}`}>{icon}</div>
+          {change && <div className="text-[10px] font-black px-2 py-1 rounded-lg bg-emerald-50 text-emerald-600">%{change}</div>}
        </div>
        <div>
-          <p className="text-[9px] lg:text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</p>
-          <h4 className="text-lg lg:text-2xl font-black text-[#001E3C]">{value.toLocaleString()}</h4>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</p>
+          <h4 className="text-xl lg:text-2xl font-black text-[#001E3C]">{value.toLocaleString()}</h4>
        </div>
     </div>
   );
 };
 
 const MarketCard = ({ icon, label, value }: any) => (
-  <div className="flex items-center justify-between p-3 lg:p-4 bg-white/5 rounded-xl lg:border lg:border-white/10">
+  <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10 group hover:bg-white/10 transition-colors">
      <div className="flex items-center gap-3">
-        <div className="p-2 bg-white/10 rounded-lg text-emerald-400">{icon}</div>
-        <span className="text-[10px] lg:text-xs font-medium text-white/70">{label}</span>
+        <div className="p-2 bg-white/10 rounded-lg text-emerald-400 group-hover:scale-110 transition-transform">{icon}</div>
+        <span className="text-xs font-medium text-white/70">{label}</span>
      </div>
-     <span className="text-xs lg:text-sm font-black text-white">{value}</span>
-  </div>
-);
-
-const ScoreMeter = ({ label, score }: any) => (
-  <div className="space-y-2">
-    <div className="flex justify-between items-end">
-       <span className="text-[9px] lg:text-[10px] font-black text-slate-600 uppercase tracking-widest">{label}</span>
-       <span className="text-xs lg:text-base font-black text-[#001E3C]">{score}/5.0</span>
-    </div>
-    <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-       <div className="h-full bg-[#001E3C] rounded-full transition-all duration-1000" style={{ width: `${(score/5)*100}%` }} />
-    </div>
+     <span className="text-sm font-black text-white">{value}</span>
   </div>
 );
 
 const AdminInput = ({ label, value, onChange, type = "text" }: any) => (
   <div className="space-y-1">
     <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{label}</label>
-    <input type={type} value={value} onChange={e => onChange(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold text-[#001E3C] outline-none focus:border-[#001E3C]" />
+    <input 
+      type={type} 
+      value={value} 
+      onChange={e => onChange(e.target.value)} 
+      className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold text-[#001E3C] outline-none focus:border-[#001E3C] focus:bg-white transition-all" 
+    />
   </div>
 );
 
