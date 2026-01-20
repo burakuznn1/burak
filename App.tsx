@@ -7,10 +7,10 @@ import {
   Coins, ClipboardCheck, History, CheckCircle2, XCircle, ThumbsUp, Plus, Trash2, Copy, 
   ExternalLink, Search, Home, Tag, ChevronRight, Check, X, Award, Share2, Building2, Layers,
   TrendingDown, ArrowUpRight, Key, Menu, Image as ImageIcon, Quote, CalendarDays, TrendingUp as TrendUpIcon,
-  ChevronDown
+  ChevronDown, SendHorizontal, MessageCircle
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { Property, PropertyStats, Offer, SurveyResponse, ClientReport } from './types.ts';
+import { Property, PropertyStats, Offer, SurveyResponse, ClientReport, ClientFeedback } from './types.ts';
 import { generateReportSummary } from './services/geminiService.ts';
 
 const ADMIN_PASSWORD = "west";
@@ -24,7 +24,9 @@ const INITIAL_PROPERTIES: Property[] = [
     image: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1000&q=80',
     currentPrice: 18500000,
     agentNotes: "Mülkümüz bu ay ciddi bir ivme kazandı. Gelen teklifler nakit alım üzerine yoğunlaşıyor. Fiyatı korumaya devam ediyoruz. Bölgedeki emsal satışlar metrekare bazında %5 artış gösterdi.",
-    clientFeedback: [],
+    clientFeedback: [
+      { date: '2024-06-14', message: 'Emsal fiyatlardaki artış beni memnun etti, bir sonraki teklifi değerlendirelim.' }
+    ],
     offers: [
       { id: '1', date: '2024-06-05', amount: 17200000, bidder: "Yatırımcı A", status: 'Reddedildi' },
       { id: '2', date: '2024-06-12', amount: 17800000, bidder: "Bireysel Alıcı B", status: 'Beklemede' },
@@ -66,6 +68,9 @@ const App: React.FC = () => {
   const [newOfferAmount, setNewOfferAmount] = useState("");
   const [newOfferBidder, setNewOfferBidder] = useState("");
   const [newOfferDate, setNewOfferDate] = useState(new Date().toISOString().split('T')[0]);
+  
+  const [clientFeedbackInput, setClientFeedbackInput] = useState("");
+  const [feedbackSent, setFeedbackSent] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -90,7 +95,6 @@ const App: React.FC = () => {
     properties.find(p => p.id === selectedPropertyId), 
   [properties, selectedPropertyId]);
 
-  // Admin panelinde düzenleme yaparken en son ayı varsayılan seç
   useEffect(() => {
     if (currentProperty && activeTab === 'admin') {
       setEditingMonthIndex(currentProperty.stats.length - 1);
@@ -134,19 +138,30 @@ const App: React.FC = () => {
   };
 
   const updateProperty = (updated: Property) => {
-    if (isClientMode) return; 
     setProperties(prev => prev.map(p => p.id === updated.id ? updated : p));
+  };
+
+  const handleSendClientFeedback = () => {
+    if (!currentProperty || !clientFeedbackInput.trim()) return;
+    const newFeedback: ClientFeedback = {
+      date: new Date().toISOString().split('T')[0],
+      message: clientFeedbackInput
+    };
+    updateProperty({
+      ...currentProperty,
+      clientFeedback: [newFeedback, ...currentProperty.clientFeedback]
+    });
+    setClientFeedbackInput("");
+    setFeedbackSent(true);
+    setTimeout(() => setFeedbackSent(false), 3000);
   };
 
   const handleAddSpecificMonth = (monthName: string) => {
     if (!currentProperty || isClientMode) return;
-    
-    // Aynı ay zaten varsa ekleme
     if (currentProperty.stats.some(s => s.month === monthName)) {
       alert(`${monthName} ayı zaten mevcut.`);
       return;
     }
-
     const newData: PropertyStats = {
       month: monthName,
       views: 0,
@@ -155,27 +170,16 @@ const App: React.FC = () => {
       calls: 0,
       visits: 0
     };
-
     const updatedStats = [...currentProperty.stats, newData];
-    updateProperty({
-      ...currentProperty,
-      stats: updatedStats
-    });
+    updateProperty({ ...currentProperty, stats: updatedStats });
     setEditingMonthIndex(updatedStats.length - 1);
   };
 
   const handleDeleteMonth = (index: number) => {
-    if (!currentProperty || isClientMode || currentProperty.stats.length <= 1) {
-      alert("En az bir ay verisi kalmalıdır.");
-      return;
-    }
+    if (!currentProperty || isClientMode || currentProperty.stats.length <= 1) return;
     if (!confirm("Bu ayın tüm verileri silinecek. Emin misiniz?")) return;
-
     const updatedStats = currentProperty.stats.filter((_, i) => i !== index);
-    updateProperty({
-      ...currentProperty,
-      stats: updatedStats
-    });
+    updateProperty({ ...currentProperty, stats: updatedStats });
     setEditingMonthIndex(Math.max(0, index - 1));
   };
 
@@ -240,12 +244,9 @@ const App: React.FC = () => {
     p.id.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Dashboard için en son ay ve bir önceki ay verileri
   const statsHistory = currentProperty?.stats || [];
   const latestStats = statsHistory[statsHistory.length - 1];
   const prevStats = statsHistory.length > 1 ? statsHistory[statsHistory.length - 2] : null;
-
-  // Admin panelinde o an düzenlenen ayın verisi
   const editingStats = statsHistory[editingMonthIndex] || latestStats;
 
   const calculateChange = (current: number, previous: number | null | undefined) => {
@@ -277,7 +278,7 @@ const App: React.FC = () => {
               <NavItem icon={<Home size={20} />} label="Portföy Merkezi" active={activeTab === 'propertyList'} onClick={() => setActiveTab('propertyList')} />
               {selectedPropertyId && (
                 <>
-                  <div className="mt-8 mb-2 px-4 text-[10px] font-bold text-white/30 uppercase tracking-widest">Düzenleme</div>
+                  <div className="mt-8 mb-2 px-4 text-[10px] font-bold text-white/30 uppercase tracking-widest">Yönetim</div>
                   <NavItem icon={<Edit3 size={18} />} label="Veri & Teklifler" active={activeTab === 'admin'} onClick={() => setActiveTab('admin')} />
                   <NavItem icon={<Sparkles size={18} />} label="Strateji Notu" active={activeTab === 'notes'} onClick={() => setActiveTab('notes')} />
                 </>
@@ -328,7 +329,6 @@ const App: React.FC = () => {
               </button>
             </div>
 
-            {/* Danışman Notu */}
             {currentProperty.agentNotes && (
               <div className="bg-white border-l-8 border-[#001E3C] p-6 lg:p-10 rounded-3xl shadow-md space-y-4 relative overflow-hidden group">
                  <div className="absolute top-4 right-6 text-slate-100 group-hover:text-slate-200 transition-colors">
@@ -352,12 +352,47 @@ const App: React.FC = () => {
               <StatCard label="Gezme" value={latestStats.visits} change={calculateChange(latestStats.visits, prevStats?.visits)} icon={<Navigation size={20}/>} color="emerald" />
             </div>
 
+            {/* Müşteri Not Kanalı */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10">
+              {isClientMode && (
+                <div className="bg-white p-8 lg:p-10 rounded-[2.5rem] shadow-sm border border-slate-200/60 flex flex-col justify-between">
+                  <div className="space-y-4">
+                    <h4 className="text-lg font-black text-[#001E3C] flex items-center gap-2">
+                      <MessageCircle size={24} className="text-[#001E3C]" /> Danışmanıma Not İlet
+                    </h4>
+                    <p className="text-xs text-slate-400 font-medium">Bu mülkle ilgili sorularınızı veya taleplerinizi doğrudan bana iletebilirsiniz.</p>
+                    <textarea 
+                      value={clientFeedbackInput}
+                      onChange={(e) => setClientFeedbackInput(e.target.value)}
+                      placeholder="Notunuzu buraya yazın..."
+                      className="w-full h-32 p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:border-[#001E3C] text-sm font-medium transition-all"
+                    />
+                  </div>
+                  <button onClick={handleSendClientFeedback}
+                    className={`mt-4 w-full py-4 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition-all ${feedbackSent ? 'bg-emerald-500 text-white' : 'bg-[#001E3C] text-white hover:scale-105'}`}>
+                    {feedbackSent ? <><Check size={18}/> Notunuz Gönderildi</> : <><SendHorizontal size={18}/> Notu İlet</>}
+                  </button>
+                </div>
+              )}
+              <div className={`bg-white p-8 lg:p-10 rounded-[2.5rem] shadow-sm border border-slate-200/60 ${!isClientMode ? 'lg:col-span-2' : ''}`}>
+                <h4 className="text-lg font-black text-[#001E3C] flex items-center gap-2 mb-6">
+                  <History size={20} className="text-slate-400" /> Müşteri Notları Geçmişi
+                </h4>
+                <div className="space-y-4 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                  {currentProperty.clientFeedback.length > 0 ? currentProperty.clientFeedback.map((fb, idx) => (
+                    <div key={idx} className="p-4 bg-slate-50 rounded-2xl border border-transparent hover:border-[#001E3C]/10 transition-all">
+                      <p className="text-sm text-slate-700 font-medium italic">"{fb.message}"</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">{fb.date} tarihinde iletildi</p>
+                    </div>
+                  )) : <div className="text-center py-10"><p className="text-slate-300 text-sm italic">Henüz bir not iletilmedi.</p></div>}
+                </div>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
                <div className="lg:col-span-2 space-y-6 lg:space-y-8">
                   <div className="bg-white p-6 lg:p-10 rounded-[2rem] shadow-sm border border-slate-200/60">
-                    <div className="mb-6 flex justify-between items-center">
-                       <h4 className="text-lg font-black text-[#001E3C]">İlgi Trendi</h4>
-                    </div>
+                    <div className="mb-6"><h4 className="text-lg font-black text-[#001E3C]">İlgi Trendi</h4></div>
                     <div className="h-[250px] w-full">
                       <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={currentProperty.stats}>
@@ -479,50 +514,38 @@ const App: React.FC = () => {
               </div>
 
               <div className="space-y-8">
-                {/* Ay Seçimi ve Düzenleme Kontrolü */}
+                {/* Rapor Ayı Yönetimi */}
                 <div className="bg-white p-8 rounded-[3rem] shadow-sm border-2 border-[#001E3C]/10 space-y-6">
                     <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
-                        <div className="space-y-1">
-                           <h4 className="font-black text-xs text-slate-400 uppercase tracking-widest flex items-center gap-2"><CalendarDays size={16} className="text-[#001E3C]"/> Rapor Dönemi</h4>
-                           <p className="text-[10px] text-slate-400 font-medium italic">Düzenlemek istediğiniz ayı seçin veya yeni ay ekleyin.</p>
-                        </div>
-                        <div className="flex flex-wrap gap-3">
-                           <select 
-                             className="px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-[#001E3C] outline-none"
-                             onChange={(e) => handleAddSpecificMonth(e.target.value)}
-                             value=""
-                           >
-                              <option value="" disabled>+ Yeni Ay Ekle</option>
-                              {MONTHS_LIST.map(m => <option key={m} value={m}>{m}</option>)}
-                           </select>
-                        </div>
+                        <h4 className="font-black text-xs text-slate-400 uppercase tracking-widest flex items-center gap-2"><CalendarDays size={16} className="text-[#001E3C]"/> Rapor Dönemi</h4>
+                        <select 
+                          className="px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-[#001E3C] outline-none"
+                          onChange={(e) => handleAddSpecificMonth(e.target.value)}
+                          value=""
+                        >
+                           <option value="" disabled>+ Yeni Ay Ekle</option>
+                           {MONTHS_LIST.map(m => <option key={m} value={m}>{m}</option>)}
+                        </select>
                     </div>
-                    
                     <div className="flex flex-wrap gap-2 p-4 bg-slate-50 rounded-2xl">
                         {currentProperty.stats.map((s, i) => (
-                           <button 
-                             key={i} 
-                             onClick={() => setEditingMonthIndex(i)}
-                             className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${editingMonthIndex === i ? 'bg-[#001E3C] text-white shadow-lg scale-105' : 'bg-white text-slate-400 border border-slate-200 hover:border-[#001E3C]'}`}
+                           <button key={i} onClick={() => setEditingMonthIndex(i)}
+                             className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${editingMonthIndex === i ? 'bg-[#001E3C] text-white shadow-lg' : 'bg-white text-slate-400 border border-slate-200'}`}
                            >
                               {s.month}
                               {editingMonthIndex === i && currentProperty.stats.length > 1 && (
-                                <X size={12} className="hover:text-red-300" onClick={(e) => { e.stopPropagation(); handleDeleteMonth(i); }} />
+                                <X size={12} onClick={(e) => { e.stopPropagation(); handleDeleteMonth(i); }} />
                               )}
                            </button>
                         ))}
                     </div>
                 </div>
 
+                {/* Ay Performans Verileri */}
                 {editingStats && (
-                  <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-200/60 space-y-6 animate-in fade-in slide-in-from-top-4">
-                     <div className="flex justify-between items-center">
-                        <h4 className="font-black text-xs text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                           <TrendingUp size={16} className="text-[#001E3C]"/> {editingStats.month} Ayı Verilerini Düzenle
-                        </h4>
-                        <span className="text-[10px] bg-amber-100 text-amber-700 px-3 py-1 rounded-full font-black uppercase">Düzenleme Modu</span>
-                     </div>
-                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                  <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-200/60 space-y-6">
+                     <h4 className="font-black text-xs text-slate-400 uppercase tracking-widest flex items-center gap-2"><TrendingUp size={16} className="text-[#001E3C]"/> {editingStats.month} Performans Verileri</h4>
+                     <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                         <AdminInput label="Görüntü" value={editingStats.views} type="number" onChange={v => { const s = [...currentProperty.stats]; s[editingMonthIndex].views = Number(v); updateProperty({...currentProperty, stats: s}); }} />
                         <AdminInput label="Favori" value={editingStats.favorites} type="number" onChange={v => { const s = [...currentProperty.stats]; s[editingMonthIndex].favorites = Number(v); updateProperty({...currentProperty, stats: s}); }} />
                         <AdminInput label="Mesaj" value={editingStats.messages} type="number" onChange={v => { const s = [...currentProperty.stats]; s[editingMonthIndex].messages = Number(v); updateProperty({...currentProperty, stats: s}); }} />
@@ -532,8 +555,9 @@ const App: React.FC = () => {
                   </div>
                 )}
 
+                {/* Genel İlan ve Fiyat Bilgileri */}
                 <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-200/60 space-y-6">
-                   <h4 className="font-black text-xs text-slate-400 uppercase tracking-widest flex items-center gap-2"><Info size={16} className="text-[#001E3C]"/> Genel İlan Bilgileri</h4>
+                   <h4 className="font-black text-xs text-slate-400 uppercase tracking-widest flex items-center gap-2"><Info size={16} className="text-[#001E3C]"/> Genel Bilgiler ve Fiyat</h4>
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <AdminInput label="İlan Başlığı" value={currentProperty.title} onChange={v => updateProperty({...currentProperty, title: v})} />
                       <AdminInput label="Konum" value={currentProperty.location} onChange={v => updateProperty({...currentProperty, location: v})} />
@@ -542,18 +566,20 @@ const App: React.FC = () => {
                    </div>
                 </div>
 
+                {/* Piyasa Analizi */}
                 <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-200/60 space-y-6">
-                   <h4 className="font-black text-xs text-slate-400 uppercase tracking-widest flex items-center gap-2"><Building2 size={16} className="text-[#001E3C]"/> Piyasa Analizi (Global)</h4>
-                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                   <h4 className="font-black text-xs text-slate-400 uppercase tracking-widest flex items-center gap-2"><Building2 size={16} className="text-[#001E3C]"/> Piyasa Analizi Verileri</h4>
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <AdminInput label="Binadaki İlanlar" value={currentProperty.market.buildingUnitsCount} type="number" onChange={v => updateProperty({...currentProperty, market: {...currentProperty.market, buildingUnitsCount: Number(v)}})} />
                       <AdminInput label="Mahalledeki İlanlar" value={currentProperty.market.neighborhoodUnitsCount} type="number" onChange={v => updateProperty({...currentProperty, market: {...currentProperty.market, neighborhoodUnitsCount: Number(v)}})} />
-                      <AdminInput label="Ort. Satış Süresi" value={currentProperty.market.avgSaleDurationDays} type="number" onChange={v => updateProperty({...currentProperty, market: {...currentProperty.market, avgSaleDurationDays: Number(v)}})} />
+                      <AdminInput label="Ort. Satış Süresi (Gün)" value={currentProperty.market.avgSaleDurationDays} type="number" onChange={v => updateProperty({...currentProperty, market: {...currentProperty.market, avgSaleDurationDays: Number(v)}})} />
                    </div>
                 </div>
 
+                {/* Teklif Yönetimi */}
                 <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-200/60 space-y-8">
-                   <h4 className="font-black text-xs text-slate-400 uppercase tracking-widest flex items-center gap-2"><Coins size={16} className="text-[#001E3C]"/> Teklifler</h4>
-                   <div className="p-6 bg-slate-50 rounded-[2rem] space-y-4">
+                   <h4 className="font-black text-xs text-slate-400 uppercase tracking-widest flex items-center gap-2"><Coins size={16} className="text-[#001E3C]"/> Teklif Yönetimi</h4>
+                   <div className="p-6 bg-slate-50 rounded-[2rem] space-y-4 border border-slate-100">
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                          <AdminInput label="Tutar (₺)" value={newOfferAmount} type="number" onChange={setNewOfferAmount} />
                          <AdminInput label="Teklif Sahibi" value={newOfferBidder} onChange={setNewOfferBidder} />
@@ -563,7 +589,7 @@ const App: React.FC = () => {
                    </div>
                    <div className="space-y-3">
                       {currentProperty.offers.map(offer => (
-                         <div key={offer.id} className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl">
+                         <div key={offer.id} className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-2xl shadow-sm">
                             <div>
                                <p className="font-black text-[#001E3C]">₺{offer.amount.toLocaleString()}</p>
                                <p className="text-[10px] font-bold text-slate-400 uppercase">{offer.bidder} • {offer.date}</p>
@@ -582,7 +608,7 @@ const App: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex gap-4">
+              <div className="flex gap-4 pt-10">
                  <button onClick={() => setActiveTab('dashboard')} className="flex-1 py-5 bg-[#001E3C] text-white rounded-[2rem] font-black shadow-xl hover:bg-[#002B5B] transition-all">Kaydet ve Raporu Önizle</button>
               </div>
            </div>
@@ -610,13 +636,13 @@ const App: React.FC = () => {
              </div>
              <h1 className="text-5xl font-black text-[#001E3C] mb-4 text-center tracking-tight">Performans Raporu</h1>
              <p className="text-xl text-slate-500 max-w-lg font-medium leading-relaxed text-center mb-12">Gayrimenkulünüzün aylık performans analizini görüntülemek için rapor kodunuzu giriniz.</p>
-             <form onSubmit={handleClientAccess} className="w-full max-w-md space-y-4">
+             <form onSubmit={handleClientAccess} className="w-full max-md space-y-4">
                <input type="text" placeholder="Rapor Kodu" value={clientCodeInput} onChange={(e) => setClientCodeInput(e.target.value)}
                  className={`w-full px-8 py-6 bg-white border-2 ${clientError ? 'border-red-500' : 'border-slate-100'} rounded-[2rem] outline-none text-xl font-black text-[#001E3C] shadow-lg focus:border-[#001E3C] text-center`}
                />
                <button type="submit" className="w-full py-6 bg-[#001E3C] text-white rounded-[2rem] font-black text-xl shadow-2xl hover:scale-105 transition-all">Analizi Görüntüle</button>
              </form>
-             <button onClick={() => setShowLoginModal(true)} className="mt-12 text-xs font-bold text-slate-400 uppercase tracking-widest hover:text-[#001E3C] transition-colors">Yönetici Girişi</button>
+             <button onClick={() => setShowLoginModal(true)} className="mt-12 text-xs font-bold text-slate-400 uppercase tracking-widest hover:text-[#001E3C]">Yönetici Girişi</button>
           </div>
         )}
 
@@ -628,8 +654,8 @@ const App: React.FC = () => {
                 <input type="password" autoFocus placeholder="Şifre" value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)}
                   className={`w-full p-4 bg-slate-50 border-2 ${loginError ? 'border-red-500 animate-pulse' : 'border-slate-100'} rounded-2xl outline-none text-center text-xl font-black tracking-[0.5em] text-[#001E3C]`}
                 />
-                <button type="submit" className="w-full py-4 bg-[#001E3C] text-white rounded-2xl font-black shadow-xl hover:bg-[#002B5B] transition-all">Giriş Yap</button>
-                <button type="button" onClick={() => setShowLoginModal(false)} className="text-xs font-bold text-slate-400 mt-4 uppercase hover:text-slate-600 transition-colors">Kapat</button>
+                <button type="submit" className="w-full py-4 bg-[#001E3C] text-white rounded-2xl font-black shadow-xl">Giriş Yap</button>
+                <button type="button" onClick={() => setShowLoginModal(false)} className="text-xs font-bold text-slate-400 mt-4 uppercase">Kapat</button>
               </form>
             </div>
           </div>
@@ -669,7 +695,6 @@ const MobileNavItem = ({ icon, active, onClick }: any) => (
 const StatCard = ({ label, value, change, icon, color }: any) => {
   const colors: any = { blue: 'bg-blue-50 text-blue-600', red: 'bg-red-50 text-red-600', indigo: 'bg-indigo-50 text-indigo-600', emerald: 'bg-emerald-50 text-emerald-600' };
   const isPositive = change && parseFloat(change) > 0;
-  
   return (
     <div className="bg-white p-5 lg:p-6 rounded-[2rem] border border-slate-200/60 shadow-sm space-y-3 relative overflow-hidden">
        <div className="flex justify-between items-start">
