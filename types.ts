@@ -16,6 +16,7 @@ export interface MarketContext {
 }
 
 export interface ClientFeedback {
+  id: string;
   date: string;
   message: string;
   requestedPrice?: number;
