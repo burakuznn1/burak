@@ -5,11 +5,11 @@ import {
   Navigation, Info, Edit3, Send, Lock, CheckCircle2, Plus, Trash2, Search, 
   Home, Award, Building2, Layers, MessageCircle, RefreshCw, Settings, 
   Loader2, User, Wallet, Timer, Target, ArrowLeft, History, DollarSign,
-  Bell, Inbox, Calendar, BarChart3
+  Bell, Inbox, Calendar, BarChart3, TrendingUp
 } from 'lucide-react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, 
-  ResponsiveContainer
+  ResponsiveContainer, LineChart, Line
 } from 'recharts';
 import { createClient } from '@supabase/supabase-js';
 import { Property, PropertyStats, Offer, ClientFeedback, PricePoint } from './types.ts';
@@ -124,27 +124,45 @@ const App: React.FC = () => {
   const totalNotifications = allFeedbacks.length;
 
   const actualEndIdx = useMemo(() => {
-    if (!currentProperty || !currentProperty.stats.length) return 0;
-    if (endRangeIdx === -1) return currentProperty.stats.length - 1;
-    return Math.min(endRangeIdx, currentProperty.stats.length - 1);
+    const statsLength = currentProperty?.stats?.length || 0;
+    if (statsLength === 0) return 0;
+    if (endRangeIdx === -1) return statsLength - 1;
+    return Math.min(endRangeIdx, statsLength - 1);
   }, [currentProperty, endRangeIdx]);
 
   const actualStartIdx = useMemo(() => Math.min(startRangeIdx, actualEndIdx), [startRangeIdx, actualEndIdx]);
 
   const filteredStats = useMemo(() => {
-    if (!currentProperty) return [];
+    if (!currentProperty || !currentProperty.stats) return [];
     return currentProperty.stats.slice(actualStartIdx, actualEndIdx + 1);
   }, [currentProperty, actualStartIdx, actualEndIdx]);
 
-  const latestStats = currentProperty?.stats?.[actualEndIdx];
-  const previousStats = actualEndIdx > 0 ? currentProperty?.stats?.[actualEndIdx - 1] : null;
+  const latestStats = useMemo(() => {
+    if (!currentProperty || !currentProperty.stats || currentProperty.stats.length === 0) {
+      return { month: 'Veri Yok', views: 0, favorites: 0, messages: 0, calls: 0, visits: 0 };
+    }
+    return currentProperty.stats[actualEndIdx];
+  }, [currentProperty, actualEndIdx]);
 
-  const chartData = useMemo(() => filteredStats.map(s => ({
+  const previousStats = useMemo(() => {
+    if (!currentProperty || !currentProperty.stats || actualEndIdx <= 0) return null;
+    return currentProperty.stats[actualEndIdx - 1];
+  }, [currentProperty, actualEndIdx]);
+
+  const performanceChartData = useMemo(() => filteredStats.map(s => ({
     name: s.month,
     Görüntüleme: s.views,
     Favori: s.favorites,
     Etkileşim: s.messages + s.calls + s.visits
   })), [filteredStats]);
+
+  const priceChartData = useMemo(() => {
+    if (!currentProperty?.priceHistory || currentProperty.priceHistory.length === 0) return [];
+    return currentProperty.priceHistory.map(ph => ({
+      date: ph.date,
+      Fiyat: ph.amount
+    }));
+  }, [currentProperty]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -177,9 +195,11 @@ const App: React.FC = () => {
 
   const handleUpdateStat = (monthIdx: number, statField: keyof PropertyStats, statValue: any) => {
     if (!currentProperty) return;
-    const newStats = [...currentProperty.stats];
-    newStats[monthIdx] = { ...newStats[monthIdx], [statField]: statValue };
-    updatePropertyData('stats', newStats);
+    const newStats = [...(currentProperty.stats || [])];
+    if (newStats[monthIdx]) {
+      newStats[monthIdx] = { ...newStats[monthIdx], [statField]: statValue };
+      updatePropertyData('stats', newStats);
+    }
   };
 
   const handleAddMonth = () => {
@@ -214,11 +234,12 @@ const App: React.FC = () => {
       date: newPriceUpdate.date,
       amount: Number(newPriceUpdate.amount)
     };
+    const updatedHistory = [...(currentProperty.priceHistory || []), pricePoint];
     setProperties(prev => prev.map(p => {
       if (p.id === selectedPropertyId) {
         return { 
           ...p, 
-          priceHistory: [...(p.priceHistory || []), pricePoint],
+          priceHistory: updatedHistory,
           currentPrice: Number(newPriceUpdate.amount)
         };
       }
@@ -252,7 +273,8 @@ const App: React.FC = () => {
   const handleGenerateAISummary = async () => {
     if (!currentProperty) return;
     setIsGenerating(true);
-    const periodString = actualStartIdx === actualEndIdx ? currentProperty.stats[actualEndIdx].month : `${currentProperty.stats[actualStartIdx].month} - ${currentProperty.stats[actualEndIdx].month}`;
+    const statsArr = currentProperty.stats || [];
+    const periodString = statsArr.length > 0 ? (actualStartIdx === actualEndIdx ? statsArr[actualEndIdx].month : `${statsArr[actualStartIdx]?.month} - ${statsArr[actualEndIdx]?.month}`) : "Dönem Belirtilmedi";
     const summary = await generateReportSummary({ property: currentProperty, period: periodString, clientName: 'Değerli Ortağımız' });
     setAiSummary(summary);
     setIsGenerating(false);
@@ -295,7 +317,7 @@ const App: React.FC = () => {
         </div>
       </aside>
 
-      {/* Main */}
+      {/* Main Content */}
       <main className="flex-1 lg:ml-72 p-4 lg:p-10 pb-20">
         {!selectedPropertyId && !isAdminAuthenticated && (
           <div className="min-h-[70vh] flex flex-col items-center justify-center text-center px-4 animate-in zoom-in">
@@ -393,7 +415,7 @@ const App: React.FC = () => {
                 <section className="space-y-6">
                    <h3 className="text-lg font-black text-[#001E3C] border-b pb-2 flex items-center gap-2"><BarChart3 size={20}/> Aylık Performans Verileri</h3>
                    <div className="space-y-6">
-                      {currentProperty.stats.map((stat, idx) => (
+                      {(currentProperty.stats || []).map((stat, idx) => (
                         <div key={idx} className="p-6 bg-slate-50 rounded-2xl border border-slate-200 space-y-4">
                            <div className="flex justify-between items-center border-b border-slate-200 pb-2 mb-2">
                               <select value={stat.month} onChange={(e) => handleUpdateStat(idx, 'month', e.target.value)} className="bg-transparent font-black text-[#001E3C] outline-none">
@@ -415,12 +437,22 @@ const App: React.FC = () => {
                 </section>
 
                 <section className="space-y-6">
-                   <h3 className="text-lg font-black text-[#001E3C] border-b pb-2 flex items-center gap-2"><Target size={20}/> Piyasa Analizi Verileri</h3>
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <AdminInput label="Emsal Satış Fiyatı (₺)" type="number" value={currentProperty.market?.comparablePrice} onChange={(v:any) => updatePropertyData('market', {...(currentProperty.market || {comparablePrice:0, buildingUnitsCount:0, neighborhoodUnitsCount:0, avgSaleDurationDays:0}), comparablePrice: v})} />
-                      <AdminInput label="Ort. Satış Süresi (Gün)" type="number" value={currentProperty.market?.avgSaleDurationDays} onChange={(v:any) => updatePropertyData('market', {...(currentProperty.market || {comparablePrice:0, buildingUnitsCount:0, neighborhoodUnitsCount:0, avgSaleDurationDays:0}), avgSaleDurationDays: v})} />
-                      <AdminInput label="Binadaki Diğer İlanlar" type="number" value={currentProperty.market?.buildingUnitsCount} onChange={(v:any) => updatePropertyData('market', {...(currentProperty.market || {comparablePrice:0, buildingUnitsCount:0, neighborhoodUnitsCount:0, avgSaleDurationDays:0}), buildingUnitsCount: v})} />
-                      <AdminInput label="Bölgedeki Diğer İlanlar" type="number" value={currentProperty.market?.neighborhoodUnitsCount} onChange={(v:any) => updatePropertyData('market', {...(currentProperty.market || {comparablePrice:0, buildingUnitsCount:0, neighborhoodUnitsCount:0, avgSaleDurationDays:0}), neighborhoodUnitsCount: v})} />
+                   <h3 className="text-lg font-black text-[#001E3C] border-b pb-2 flex items-center gap-2"><History size={20}/> Fiyat Geçmişi</h3>
+                   <div className="bg-slate-50 p-6 rounded-2xl space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <AdminInput label="Tarih" value={newPriceUpdate.date} onChange={(v:any) => setNewPriceUpdate({...newPriceUpdate, date: v})} />
+                        <AdminInput label="Fiyat (₺)" type="number" value={newPriceUpdate.amount} onChange={(v:any) => setNewPriceUpdate({...newPriceUpdate, amount: v})} />
+                      </div>
+                      <button onClick={handleAddPriceUpdate} className="w-full py-4 bg-[#001E3C] text-white rounded-xl font-bold flex items-center justify-center gap-2"><Plus size={18}/> Listeye Ekle</button>
+                   </div>
+                   <div className="space-y-2">
+                      {(currentProperty.priceHistory || []).map((p, i) => (
+                        <div key={i} className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-xl">
+                          <span className="text-xs font-bold text-slate-400">{p.date}</span>
+                          <span className="text-sm font-black">₺{p.amount.toLocaleString()}</span>
+                          <button onClick={() => updatePropertyData('priceHistory', currentProperty.priceHistory.filter((_, idx) => idx !== i))} className="p-2 text-red-400 hover:bg-red-50 rounded-lg"><Trash2 size={18}/></button>
+                        </div>
+                      ))}
                    </div>
                 </section>
 
@@ -434,32 +466,22 @@ const App: React.FC = () => {
                       <button onClick={handleAddOffer} className="w-full py-4 bg-[#001E3C] text-white rounded-xl font-bold flex items-center justify-center gap-2"><Plus size={18}/> Teklif Ekle</button>
                    </div>
                    <div className="space-y-2">
-                      {currentProperty.offers?.map((off) => (
+                      {(currentProperty.offers || []).map((off) => (
                         <div key={off.id} className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-xl shadow-sm">
                           <div><p className="font-bold text-sm">{off.bidder}</p><p className="text-[10px] font-black text-slate-400">₺{off.amount.toLocaleString()} • {off.date}</p></div>
-                          <button onClick={() => updatePropertyData('offers', currentProperty.offers.filter(o => o.id !== off.id))} className="p-2 text-red-400 hover:bg-red-50 rounded-lg"><Trash2 size={18}/></button>
+                          <button onClick={() => updatePropertyData('offers', (currentProperty.offers || []).filter(o => o.id !== off.id))} className="p-2 text-red-400 hover:bg-red-50 rounded-lg"><Trash2 size={18}/></button>
                         </div>
                       ))}
                    </div>
                 </section>
 
                 <section className="space-y-6">
-                   <h3 className="text-lg font-black text-[#001E3C] border-b pb-2 flex items-center gap-2"><History size={20}/> Fiyat Geçmişi</h3>
-                   <div className="bg-slate-50 p-6 rounded-2xl space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <AdminInput label="Tarih" value={newPriceUpdate.date} onChange={(v:any) => setNewPriceUpdate({...newPriceUpdate, date: v})} />
-                        <AdminInput label="Fiyat (₺)" type="number" value={newPriceUpdate.amount} onChange={(v:any) => setNewPriceUpdate({...newPriceUpdate, amount: v})} />
-                      </div>
-                      <button onClick={handleAddPriceUpdate} className="w-full py-4 bg-[#001E3C] text-white rounded-xl font-bold flex items-center justify-center gap-2"><Plus size={18}/> Listeye Ekle</button>
-                   </div>
-                   <div className="space-y-2">
-                      {currentProperty.priceHistory?.map((p, i) => (
-                        <div key={i} className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-xl">
-                          <span className="text-xs font-bold text-slate-400">{p.date}</span>
-                          <span className="text-sm font-black">₺{p.amount.toLocaleString()}</span>
-                          <button onClick={() => updatePropertyData('priceHistory', currentProperty.priceHistory.filter((_, idx) => idx !== i))} className="p-2 text-red-400 hover:bg-red-50 rounded-lg"><Trash2 size={18}/></button>
-                        </div>
-                      ))}
+                   <h3 className="text-lg font-black text-[#001E3C] border-b pb-2 flex items-center gap-2"><Target size={20}/> Piyasa Analizi Verileri</h3>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <AdminInput label="Emsal Satış Fiyatı (₺)" type="number" value={currentProperty.market?.comparablePrice} onChange={(v:any) => updatePropertyData('market', {...(currentProperty.market || {comparablePrice:0, buildingUnitsCount:0, neighborhoodUnitsCount:0, avgSaleDurationDays:0}), comparablePrice: v})} />
+                      <AdminInput label="Ort. Satış Süresi (Gün)" type="number" value={currentProperty.market?.avgSaleDurationDays} onChange={(v:any) => updatePropertyData('market', {...(currentProperty.market || {comparablePrice:0, buildingUnitsCount:0, neighborhoodUnitsCount:0, avgSaleDurationDays:0}), avgSaleDurationDays: v})} />
+                      <AdminInput label="Binadaki Diğer İlanlar" type="number" value={currentProperty.market?.buildingUnitsCount} onChange={(v:any) => updatePropertyData('market', {...(currentProperty.market || {comparablePrice:0, buildingUnitsCount:0, neighborhoodUnitsCount:0, avgSaleDurationDays:0}), buildingUnitsCount: v})} />
+                      <AdminInput label="Bölgedeki Diğer İlanlar" type="number" value={currentProperty.market?.neighborhoodUnitsCount} onChange={(v:any) => updatePropertyData('market', {...(currentProperty.market || {comparablePrice:0, buildingUnitsCount:0, neighborhoodUnitsCount:0, avgSaleDurationDays:0}), neighborhoodUnitsCount: v})} />
                    </div>
                 </section>
 
@@ -470,13 +492,13 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* Dashboard */}
-        {activeTab === 'dashboard' && currentProperty && latestStats && (
+        {/* Dashboard / Rapor */}
+        {activeTab === 'dashboard' && currentProperty && (
           <div className="max-w-6xl mx-auto space-y-10 animate-in fade-in duration-700">
              <div className="flex flex-col lg:flex-row justify-between items-start gap-6">
                 <div className="space-y-2">
                    <div className="flex items-center gap-2 mb-2">
-                     <span className="px-3 py-1 bg-[#001E3C] text-white text-[10px] font-black rounded-full uppercase tracking-widest">{latestStats.month} Performansı</span>
+                     <span className="px-3 py-1 bg-[#001E3C] text-white text-[10px] font-black rounded-full uppercase tracking-widest">{(latestStats?.month || '-') + " Performansı"}</span>
                    </div>
                    <h2 className="text-4xl font-black text-[#001E3C] tracking-tight">{currentProperty.title}</h2>
                    <p className="flex items-center gap-2 text-slate-500 font-medium"><MapPin size={16}/> {currentProperty.location || 'Konum Girilmedi'}</p>
@@ -489,31 +511,56 @@ const App: React.FC = () => {
                 </div>
              </div>
 
-             {/* Grafik */}
-             <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-6">
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                   <div className="flex items-center gap-3"><Calendar className="text-[#001E3C]" size={20}/><h3 className="font-black text-[#001E3C] uppercase tracking-wider text-xs">Analiz Aralığı</h3></div>
-                   <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-200">
-                      <select value={actualStartIdx} onChange={(e) => setStartRangeIdx(parseInt(e.target.value))} className="bg-white px-4 py-2 rounded-xl text-sm font-bold outline-none">
-                        {currentProperty.stats.map((s, idx) => (<option key={idx} value={idx}>{s.month}</option>))}
-                      </select>
-                      <span className="text-slate-300 font-black">-</span>
-                      <select value={actualEndIdx} onChange={(e) => setEndRangeIdx(parseInt(e.target.value))} className="bg-white px-4 py-2 rounded-xl text-sm font-bold outline-none">
-                        {currentProperty.stats.map((s, idx) => (<option key={idx} value={idx}>{s.month}</option>))}
-                      </select>
-                   </div>
+             {/* Grafik Bölümleri */}
+             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Performans Grafiği */}
+                <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-6">
+                    <div className="flex items-center justify-between">
+                       <div className="flex items-center gap-3"><BarChart3 className="text-[#001E3C]" size={20}/><h3 className="font-black text-[#001E3C] uppercase tracking-wider text-xs">Piyasa Performansı</h3></div>
+                       <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-200">
+                          <select value={actualStartIdx} onChange={(e) => setStartRangeIdx(parseInt(e.target.value))} className="bg-white px-2 py-1 rounded-lg text-[10px] font-bold outline-none">
+                            {(currentProperty.stats || []).map((s, idx) => (<option key={idx} value={idx}>{s.month}</option>))}
+                          </select>
+                          <span className="text-slate-300 font-black">-</span>
+                          <select value={actualEndIdx} onChange={(e) => setEndRangeIdx(parseInt(e.target.value))} className="bg-white px-2 py-1 rounded-lg text-[10px] font-bold outline-none">
+                            {(currentProperty.stats || []).map((s, idx) => (<option key={idx} value={idx}>{s.month}</option>))}
+                          </select>
+                       </div>
+                    </div>
+                    <div className="h-[250px] w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={performanceChartData}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                          <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }} />
+                          <YAxis tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }} />
+                          <Tooltip contentStyle={{ backgroundColor: '#001E3C', borderRadius: '16px', border: 'none', color: '#fff' }} />
+                          <Area type="monotone" dataKey="Görüntüleme" stroke="#001E3C" strokeWidth={3} fillOpacity={0.1} fill="#001E3C" />
+                          <Area type="monotone" dataKey="Favori" stroke="#f43f5e" strokeWidth={2} fill="transparent" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
                 </div>
-                <div className="h-[300px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                      <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }} />
-                      <YAxis tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }} />
-                      <Tooltip contentStyle={{ backgroundColor: '#001E3C', borderRadius: '16px', border: 'none', color: '#fff' }} />
-                      <Area type="monotone" dataKey="Görüntüleme" stroke="#001E3C" strokeWidth={3} fillOpacity={0.1} fill="#001E3C" />
-                      <Area type="monotone" dataKey="Favori" stroke="#f43f5e" strokeWidth={2} fill="transparent" />
-                    </AreaChart>
-                  </ResponsiveContainer>
+
+                {/* Fiyat Geçmişi Grafiği */}
+                <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-6">
+                    <div className="flex items-center gap-3"><TrendingUp className="text-emerald-500" size={20}/><h3 className="font-black text-[#001E3C] uppercase tracking-wider text-xs">Fiyat Trend Analizi</h3></div>
+                    <div className="h-[250px] w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={priceChartData}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                          <XAxis dataKey="date" tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }} />
+                          <YAxis 
+                            tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }} 
+                            tickFormatter={(val) => `₺${(val/1000000).toFixed(1)}M`}
+                          />
+                          <Tooltip 
+                            formatter={(val: number) => `₺${val.toLocaleString()}`}
+                            contentStyle={{ backgroundColor: '#001E3C', borderRadius: '16px', border: 'none', color: '#fff' }} 
+                          />
+                          <Line type="stepAfter" dataKey="Fiyat" stroke="#10b981" strokeWidth={4} dot={{ r: 6, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 8 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
                 </div>
              </div>
 
@@ -523,7 +570,7 @@ const App: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                    <MarketMetric label="Emsal Fiyat" value={`₺${(currentProperty.market?.comparablePrice || 0).toLocaleString()}`} icon={<Target size={20}/>} />
                    <MarketMetric label="Ort. Satış Süresi" value={`${currentProperty.market?.avgSaleDurationDays || 0} Gün`} icon={<Timer size={20}/>} />
-                   <MarketMetric label="Binadaki Diğer İlanlar" value={`${currentProperty.market?.buildingUnitsCount || 0} İlan`} icon={<Building2 size={20}/>} />
+                   <MarketMetric label="Binadaki İlanlar" value={`${currentProperty.market?.buildingUnitsCount || 0} İlan`} icon={<Building2 size={20}/>} />
                    <MarketMetric label="Mahalledeki Rekabet" value={`${currentProperty.market?.neighborhoodUnitsCount || 0} İlan`} icon={<Layers size={20}/>} />
                 </div>
              </div>
@@ -531,7 +578,9 @@ const App: React.FC = () => {
              {aiSummary && (
                <div className="bg-white p-8 lg:p-12 rounded-[3rem] shadow-xl border border-blue-50 animate-in slide-in-from-bottom-5">
                  <h4 className="text-xl font-black text-[#001E3C] mb-6 flex items-center gap-3"><Sparkles size={24} className="text-amber-500"/> Türkwest Strateji Özeti</h4>
-                 <p className="whitespace-pre-line text-slate-600 leading-relaxed font-medium">{aiSummary}</p>
+                 <div className="prose prose-slate max-w-none">
+                    <p className="whitespace-pre-line text-slate-600 leading-relaxed font-medium">{aiSummary}</p>
+                 </div>
                </div>
              )}
 
@@ -543,26 +592,36 @@ const App: React.FC = () => {
              </div>
 
              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Gelen Teklifler Kartı */}
                 <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm space-y-8">
                    <h4 className="text-xl font-black text-[#001E3C] flex items-center justify-between">Gelen Teklifler <span className="text-xs bg-orange-50 text-orange-600 px-3 py-1 rounded-full">{currentProperty.offers?.length || 0} Adet</span></h4>
-                   <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                      {(!currentProperty.offers || currentProperty.offers.length === 0) ? <div className="text-center py-12 text-slate-300 italic font-bold">Aktif teklif bulunmuyor.</div> : 
+                   <div className="space-y-4 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
+                      {(!currentProperty.offers || currentProperty.offers.length === 0) ? (
+                        <div className="text-center py-12 text-slate-300 italic font-bold">Aktif teklif bulunmuyor.</div>
+                      ) : (
                         currentProperty.offers.map(offer => (
-                          <div key={offer.id} className="flex items-center justify-between p-5 bg-slate-50/50 rounded-2xl border border-slate-100">
+                          <div key={offer.id} className="flex items-center justify-between p-5 bg-slate-50/50 rounded-2xl border border-slate-100 hover:bg-slate-100 transition-colors">
                              <div className="flex items-center gap-4">
                                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 shadow-sm"><User size={20}/></div>
-                               <div><p className="font-bold text-sm">{offer.bidder.substring(0,2)}***</p><p className="text-[10px] text-slate-400 font-bold">{offer.date}</p></div>
+                               <div>
+                                 <p className="font-bold text-sm">{offer.bidder.substring(0,2)}***</p>
+                                 <p className="text-[10px] text-slate-400 font-bold">{offer.date} • {offer.status}</p>
+                               </div>
                              </div>
-                             <div className="text-right"><p className="font-black text-sm text-[#001E3C]">₺{offer.amount.toLocaleString()}</p></div>
+                             <div className="text-right">
+                               <p className="font-black text-sm text-[#001E3C]">₺{offer.amount.toLocaleString()}</p>
+                             </div>
                           </div>
                         ))
-                      }
+                      )}
                    </div>
                 </div>
 
+                {/* Danışman Notu Kartı */}
                 <div className="bg-[#001E3C] p-10 rounded-[3rem] text-white flex flex-col justify-center shadow-xl relative overflow-hidden">
                    <div className="flex items-center gap-3 mb-4"><MessageCircle size={32} className="text-blue-400"/><h4 className="text-2xl font-black">Danışman Notu</h4></div>
                    <p className="text-xl font-medium italic text-white/90">"{currentProperty.agentNotes || 'Satış süreciniz profesyonel ekibimizce takip edilmektedir.'}"</p>
+                   <div className="absolute top-0 right-0 p-8 opacity-10"><Award size={120}/></div>
                 </div>
              </div>
 
@@ -606,7 +665,7 @@ const App: React.FC = () => {
                                onClick={(e) => { 
                                  e.stopPropagation();
                                  if (window.confirm('Silmek istediğinize emin misiniz?')) {
-                                   setProperties(prev => prev.map(p => p.id === fb.propertyId ? { ...p, clientFeedback: p.clientFeedback.filter(f => f.id !== fb.id) } : p));
+                                   setProperties(prev => prev.map(p => p.id === fb.propertyId ? { ...p, clientFeedback: (p.clientFeedback || []).filter(f => f.id !== fb.id) } : p));
                                  }
                                }} 
                                className="p-4 bg-red-50 text-red-500 rounded-xl hover:bg-red-600 hover:text-white transition-all shadow-sm"
@@ -641,20 +700,22 @@ const App: React.FC = () => {
 const NavItem = ({ icon, label, active, onClick, badge }: any) => (
   <button onClick={onClick} className={`w-full flex items-center justify-between px-6 py-4 rounded-2xl transition-all ${active ? 'bg-white/10 text-white font-black' : 'text-white/30 hover:text-white'}`}>
     <div className="flex items-center gap-4"><span>{icon}</span><span className="text-[13px]">{label}</span></div>
-    {badge > 0 && <span className="w-6 h-6 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center animate-pulse">{badge}</span>}
+    {(badge || 0) > 0 && <span className="w-6 h-6 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center animate-pulse">{badge}</span>}
   </button>
 );
 
 const DashboardStat = ({ label, value, prevValue, icon, color }: any) => {
   const styles: any = { blue: 'bg-blue-50 text-blue-600', red: 'bg-red-50 text-red-600', indigo: 'bg-indigo-50 text-indigo-600', emerald: 'bg-emerald-50 text-emerald-600' };
-  const diff = prevValue !== undefined ? Number(value) - Number(prevValue) : null;
+  const valNum = Number(value || 0);
+  const prevValNum = Number(prevValue || 0);
+  const diff = prevValue !== undefined ? valNum - prevValNum : null;
   return (
     <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-4 hover:shadow-md transition-shadow">
        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${styles[color]}`}>{icon}</div>
        <div>
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</p>
           <div className="flex items-baseline gap-2 mt-1">
-            <h4 className="text-2xl font-black text-[#001E3C]">{Number(value || 0).toLocaleString()}</h4>
+            <h4 className="text-2xl font-black text-[#001E3C]">{valNum.toLocaleString()}</h4>
             {diff !== null && diff !== 0 && (<span className={`text-[10px] font-black ${diff > 0 ? 'text-emerald-500' : 'text-red-500'}`}>{diff > 0 ? '+' : ''}{diff}</span>)}
           </div>
        </div>
