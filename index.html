@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -14,16 +15,11 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        html, body, #root {
-            height: 100%;
-            margin: 0;
-            padding: 0;
-            overflow-x: hidden;
-            background-color: #f8fafc;
-        }
         body {
             font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
             -webkit-tap-highlight-color: transparent;
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
         }
         ::-webkit-scrollbar {
             width: 4px;
@@ -34,13 +30,6 @@
         ::-webkit-scrollbar-thumb {
             background: #cbd5e1;
             border-radius: 10px;
-        }
-        /* iPhone Safe Area Helpers */
-        .safe-top {
-            padding-top: env(safe-area-inset-top);
-        }
-        .safe-bottom {
-            padding-bottom: env(safe-area-inset-bottom);
         }
     </style>
 <script type="importmap">
