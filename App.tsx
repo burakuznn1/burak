@@ -6,11 +6,11 @@ import {
   Loader2, User, Wallet, Timer, Target, ArrowLeft, History, DollarSign,
   Bell, Inbox, Calendar, BarChart3, TrendingUp, Phone, UserCheck, Share2,
   CheckCircle, Clock, List, Users, Briefcase, FileText, Upload, PieChart, Activity,
-  ArrowUpRight, ArrowDownRight, Scale
+  ArrowUpRight, ArrowDownRight, Scale, ChevronRight, XCircle
 } from 'lucide-react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, 
-  ResponsiveContainer, LineChart, Line, BarChart, Bar, Legend, Cell
+  ResponsiveContainer, BarChart, Bar
 } from 'recharts';
 import { createClient } from '@supabase/supabase-js';
 import { Property, PropertyStats, Offer, ClientFeedback, PricePoint, Agent, SocialMediaTask, Customer } from './types.ts';
@@ -87,7 +87,7 @@ const App: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoadingCloud, setIsLoadingCloud] = useState(false);
   
-  const [newOffer, setNewOffer] = useState({ amount: '', bidder: '' });
+  const [newOffer, setNewOffer] = useState({ amount: '', bidder: '', status: 'Beklemede' as const });
   const [newPriceUpdate, setNewPriceUpdate] = useState({
     date: new Date().toISOString().slice(0, 10),
     amount: ""
@@ -145,7 +145,7 @@ const App: React.FC = () => {
     try {
       localStorage.setItem('west_full_data', JSON.stringify(fullData));
     } catch (e) {
-      console.warn("LocalStorage quota exceeded.", e);
+      console.warn("QuotaExceededError", e);
     }
     
     if (supabase && (isAdminAuthenticated || isClientMode)) {
@@ -234,10 +234,10 @@ const App: React.FC = () => {
       date: new Date().toLocaleDateString('tr-TR'), 
       amount: Number(newOffer.amount), 
       bidder: newOffer.bidder, 
-      status: 'Beklemede' 
+      status: newOffer.status 
     };
     updatePropertyData('offers', [...(currentProperty.offers || []), offer]);
-    setNewOffer({ amount: '', bidder: '' });
+    setNewOffer({ amount: '', bidder: '', status: 'Beklemede' });
   };
 
   const handleAddPriceUpdate = () => {
@@ -337,7 +337,7 @@ const App: React.FC = () => {
     return Math.max(0, Math.floor(diff / (1000 * 3600 * 24)));
   };
 
-  // Rapor Karşılaştırma Mantığı
+  // Karşılaştırma Mantığı
   const statComparison = useMemo(() => {
     if (!currentProperty || !currentProperty.stats || currentProperty.stats.length < 2) return null;
     const stats = currentProperty.stats;
@@ -376,7 +376,7 @@ const App: React.FC = () => {
               <NavItem icon={<Home size={20}/>} label="Portföy Merkezi" active={activeTab === 'propertyList'} onClick={() => setActiveTab('propertyList')} />
               <NavItem icon={<PieChart size={20}/>} label="Genel İstatistikler" active={activeTab === 'portfolioStats'} onClick={() => setActiveTab('portfolioStats')} />
               <NavItem icon={<Users size={20}/>} label="Müşteri Yönetimi" active={activeTab === 'customers'} onClick={() => setActiveTab('customers')} />
-              <NavItem icon={<UserCheck size={20}/>} label="Danışman Yönetimi" active={activeTab === 'agents'} onClick={() => setActiveTab('agents')} />
+              <NavItem icon={<UserCheck size={20}/>} label="Danışman Yönetimi" active={activeTab === 'agents'} onClick={() => setActiveTab('agents'} />
               <NavItem icon={<Calendar size={20}/>} label="Pazarlama Takvimi" active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} />
               <NavItem icon={<Bell size={20}/>} label="Müşteri Talepleri" badge={totalNotifications} active={activeTab === 'notifications'} onClick={() => setActiveTab('notifications')} />
               {selectedPropertyId && (
@@ -424,7 +424,7 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* --- GENEL İSTATİSTİKLER --- */}
+        {/* --- GENEL İSTATİSTİKLER (Thumbnail ve Gün eklendi) --- */}
         {activeTab === 'portfolioStats' && isAdminAuthenticated && (
           <div className="max-w-6xl mx-auto space-y-8 animate-in slide-in-from-bottom-5">
             <h2 className="text-3xl font-black text-[#001E3C]">Portföy Genel İstatistikleri</h2>
@@ -468,6 +468,447 @@ const App: React.FC = () => {
                  </table>
                </div>
             </div>
+          </div>
+        )}
+
+        {/* --- MÜŞTERİ YÖNETİMİ (Detaylı Bina Yaşı, Kat vb.) --- */}
+        {activeTab === 'customers' && isAdminAuthenticated && (
+          <div className="max-w-5xl mx-auto space-y-8 animate-in slide-in-from-bottom-5">
+            <h2 className="text-3xl font-black text-[#001E3C]">Müşteri Kaydı (CRM)</h2>
+            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
+              <h3 className="text-lg font-black text-[#001E3C] flex items-center gap-2"><Plus size={20}/> Yeni Müşteri Ekle</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <AdminInput label="Ad Soyad" value={newCustomer.name} onChange={(v:any) => setNewCustomer({...newCustomer, name: v})} />
+                <AdminInput label="Telefon" value={newCustomer.phone} onChange={(v:any) => setNewCustomer({...newCustomer, phone: v})} />
+                <AdminInput label="Bütçe (₺)" type="number" value={newCustomer.budget} onChange={(v:any) => setNewCustomer({...newCustomer, budget: v})} />
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Mahalle Tercihi</label>
+                  <select value={newCustomer.preferredNeighborhood} onChange={e => setNewCustomer({...newCustomer, preferredNeighborhood: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none text-[#001E3C]">
+                    {RIZE_NEIGHBORHOODS.map(n => <option key={n} value={n}>{n}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Bina Yaşı Tercihi</label>
+                  <select value={newCustomer.preferredBuildingAge} onChange={e => setNewCustomer({...newCustomer, preferredBuildingAge: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none text-[#001E3C]">
+                    <option value="0-5">0-5 Yaş (Sıfır)</option>
+                    <option value="5-15">5-15 Yaş</option>
+                    <option value="15+">15+ Yaş</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Kat Tercihi</label>
+                  <select value={newCustomer.preferredFloor} onChange={e => setNewCustomer({...newCustomer, preferredFloor: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none text-[#001E3C]">
+                    <option value="Bahçe Katı">Bahçe Katı</option>
+                    <option value="Ara Kat">Ara Kat</option>
+                    <option value="En Üst Kat">En Üst Kat</option>
+                  </select>
+                </div>
+                <div className="md:col-span-2 lg:col-span-3 space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Özel Notlar</label>
+                  <textarea value={newCustomer.notes} onChange={e => setNewCustomer({...newCustomer, notes: e.target.value})} placeholder="Örn: Geniş balkonlu olsun, asansör şart..." className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none h-24 resize-none text-[#001E3C]"></textarea>
+                </div>
+              </div>
+              <button onClick={handleAddCustomer} className="w-full py-4 bg-[#001E3C] text-white rounded-xl font-black text-sm uppercase tracking-widest shadow-lg">KAYDI TAMAMLA</button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-20">
+              {customers.map(c => (
+                <div key={c.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-4 group">
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center font-black text-xl">{c.name.charAt(0)}</div>
+                      <div><p className="font-black text-lg text-[#001E3C]">{c.name}</p><p className="text-xs font-bold text-slate-400">{c.phone}</p></div>
+                    </div>
+                    <button onClick={() => setCustomers(prev => prev.filter(x => x.id !== c.id))} className="p-2 text-red-400 opacity-0 group-hover:opacity-100 transition-all hover:bg-red-50 rounded-lg"><Trash2 size={18}/></button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 text-xs font-bold text-[#001E3C]">
+                    <div className="bg-slate-50 p-3 rounded-xl"><p className="text-[9px] text-slate-400 uppercase">Tercih</p>{c.preferredNeighborhood}</div>
+                    <div className="bg-slate-50 p-3 rounded-xl"><p className="text-[9px] text-slate-400 uppercase">Kat/Yaş</p>{c.preferredFloor} • {c.preferredBuildingAge} Yaş</div>
+                  </div>
+                  {c.notes && <p className="text-xs text-slate-500 font-medium italic border-l-2 border-indigo-200 pl-3">"{c.notes}"</p>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* --- DÜZENLEME SEKİMESİ (Mevcut paneller güncellendi) --- */}
+        {activeTab === 'edit' && currentProperty && (
+          <div className="max-w-4xl mx-auto space-y-12 animate-in slide-in-from-right-10 pb-20">
+             <div className="flex justify-between items-center">
+                <button onClick={() => setActiveTab('propertyList')} className="flex items-center gap-2 text-slate-500 font-bold hover:text-[#001E3C]"><ArrowLeft size={20}/> Geri</button>
+                <button onClick={() => handleDeleteProperty(currentProperty.id)} className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-500 rounded-xl text-sm font-bold"><Trash2 size={18}/> Portföyden Çıkar</button>
+             </div>
+             
+             <div className="bg-white rounded-[3rem] p-8 lg:p-12 shadow-xl border border-slate-100 space-y-16">
+                
+                <section className="space-y-8">
+                   <h3 className="text-xl font-black text-[#001E3C] border-b pb-4 flex items-center gap-3"><Info size={24} className="text-blue-500"/> Temel Bilgiler</h3>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <AdminInput label="İlan Başlığı" value={currentProperty.title} onChange={(v:any) => updatePropertyData('title', v)} />
+                      <AdminInput label="Konum / Adres" value={currentProperty.location} onChange={(v:any) => updatePropertyData('location', v)} />
+                      <AdminInput label="Mevcut Fiyat (₺)" type="number" value={currentProperty.currentPrice} onChange={(v:any) => updatePropertyData('currentPrice', v)} />
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">İlan Tarihi</label>
+                        <input type="date" value={currentProperty.listingDate || ''} onChange={e => updatePropertyData('listingDate', e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none text-[#001E3C]" />
+                      </div>
+                      <AdminInput label="Görsel URL" value={currentProperty.image} onChange={(v:any) => updatePropertyData('image', v)} />
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Sorumlu Danışman</label>
+                        <select value={agents.find(a => a.name === currentProperty.agentName)?.id || ""} onChange={(e) => { const selected = agents.find(a => a.id === e.target.value); if (selected) { updatePropertyData('agentName', selected.name); updatePropertyData('agentPhone', selected.phone); } }} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none text-[#001E3C]">
+                          <option value="">Seçiniz...</option>
+                          {agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                        </select>
+                      </div>
+                   </div>
+                   <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Danışman Notu</label>
+                      <textarea value={currentProperty.agentNotes} onChange={(e) => updatePropertyData('agentNotes', e.target.value)} className="w-full p-5 bg-slate-50 border border-slate-200 rounded-3xl text-sm font-bold outline-none h-32 resize-none text-[#001E3C]"></textarea>
+                   </div>
+                </section>
+
+                <section className="space-y-8">
+                   <h3 className="text-xl font-black text-[#001E3C] border-b pb-4 flex items-center gap-3"><Building2 size={24} className="text-emerald-500"/> Piyasa ve Stok Verileri</h3>
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                      <AdminInput label="Emsal Değer (₺)" type="number" value={currentProperty.market?.comparablePrice} onChange={(v:any) => updateMarketData('comparablePrice', v)} />
+                      <AdminInput label="Bina İçi Satılık" type="number" value={currentProperty.market?.buildingUnitsCount} onChange={(v:any) => updateMarketData('buildingUnitsCount', v)} />
+                      <AdminInput label="Mahalle İçi Satılık" type="number" value={currentProperty.market?.neighborhoodUnitsCount} onChange={(v:any) => updateMarketData('neighborhoodUnitsCount', v)} />
+                   </div>
+                </section>
+
+                <section className="space-y-8">
+                   <h3 className="text-xl font-black text-[#001E3C] border-b pb-4 flex items-center gap-3"><History size={24} className="text-indigo-500"/> Önceki Fiyat Bilgileri</h3>
+                   <div className="flex flex-col md:flex-row gap-4 items-end bg-slate-50 p-6 rounded-3xl">
+                      <AdminInput label="Tutar (₺)" type="number" value={newPriceUpdate.amount} onChange={(v:any) => setNewPriceUpdate({...newPriceUpdate, amount: v})} />
+                      <div className="space-y-1 flex-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Tarih</label>
+                        <input type="date" value={newPriceUpdate.date} onChange={e => setNewPriceUpdate({...newPriceUpdate, date: e.target.value})} className="w-full p-4 bg-white border border-slate-200 rounded-2xl text-sm font-bold outline-none text-[#001E3C]" />
+                      </div>
+                      <button onClick={handleAddPriceUpdate} className="px-10 py-4 bg-[#001E3C] text-white rounded-2xl font-black text-sm">EKLE</button>
+                   </div>
+                   <div className="space-y-3">
+                      {(currentProperty.priceHistory || []).map((ph, idx) => (
+                        <div key={idx} className="flex justify-between items-center p-4 bg-white border border-slate-100 rounded-2xl shadow-sm">
+                           <span className="font-black text-[#001E3C]">₺{ph.amount.toLocaleString()}</span>
+                           <div className="flex items-center gap-4">
+                              <span className="text-xs font-bold text-slate-400">{ph.date}</span>
+                              <button onClick={() => updatePropertyData('priceHistory', (currentProperty.priceHistory || []).filter((_, i) => i !== idx))} className="text-red-300"><Trash2 size={16}/></button>
+                           </div>
+                        </div>
+                      ))}
+                   </div>
+                </section>
+
+                <section className="space-y-8">
+                   <h3 className="text-xl font-black text-[#001E3C] border-b pb-4 flex items-center gap-3"><Wallet size={24} className="text-amber-500"/> Teklif Girişi</h3>
+                   <div className="flex flex-col md:flex-row gap-4 items-end bg-slate-50 p-6 rounded-3xl">
+                      <AdminInput label="Tutar (₺)" type="number" value={newOffer.amount} onChange={(v:any) => setNewOffer({...newOffer, amount: v})} />
+                      <AdminInput label="Kişi" value={newOffer.bidder} onChange={(v:any) => setNewOffer({...newOffer, bidder: v})} />
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Durum</label>
+                        <select value={newOffer.status} onChange={e => setNewOffer({...newOffer, status: e.target.value as any})} className="w-full p-4 bg-white border border-slate-200 rounded-2xl text-sm font-bold outline-none text-[#001E3C]">
+                           <option value="Beklemede">Beklemede</option>
+                           <option value="Reddedildi">Reddedildi</option>
+                        </select>
+                      </div>
+                      <button onClick={handleAddOffer} className="px-10 py-4 bg-[#001E3C] text-white rounded-2xl font-black text-sm">KAYDET</button>
+                   </div>
+                   <div className="space-y-3">
+                      {(currentProperty.offers || []).map((offer) => (
+                        <div key={offer.id} className="flex justify-between items-center p-5 bg-white border border-slate-100 rounded-2xl shadow-sm">
+                           <div>
+                              <p className="font-black">₺{offer.amount.toLocaleString()}</p>
+                              <p className="text-[10px] font-bold text-slate-400">{offer.bidder} • {offer.status}</p>
+                           </div>
+                           <button onClick={() => updatePropertyData('offers', (currentProperty.offers || []).filter(o => o.id !== offer.id))} className="text-red-300"><Trash2 size={18}/></button>
+                        </div>
+                      ))}
+                   </div>
+                </section>
+
+                <section className="space-y-8">
+                   <div className="flex justify-between items-end border-b pb-4">
+                      <h3 className="text-xl font-black text-[#001E3C] flex items-center gap-3"><Activity size={24} className="text-blue-500"/> Aylık Veri Girişi</h3>
+                      <button onClick={handleAddMonth} className="text-xs font-black text-blue-600 flex items-center gap-1"><Plus size={16}/> YENİ AY</button>
+                   </div>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      {(currentProperty.stats || []).map((stat, idx) => (
+                        <div key={idx} className="p-8 bg-slate-50 rounded-[2.5rem] space-y-6 border border-slate-100 shadow-inner">
+                           <div className="flex justify-between items-center">
+                              <h4 className="font-black text-[#001E3C]">{stat.month}</h4>
+                              <button onClick={() => updatePropertyData('stats', (currentProperty.stats || []).filter((_, i) => i !== idx))} className="text-red-300"><Trash2 size={18}/></button>
+                           </div>
+                           <div className="grid grid-cols-2 gap-4">
+                              <AdminInput label="İzlenme" type="number" value={stat.views} onChange={(v:any) => handleUpdateStat(idx, 'views', v)} />
+                              <AdminInput label="Favori" type="number" value={stat.favorites} onChange={(v:any) => handleUpdateStat(idx, 'favorites', v)} />
+                              <AdminInput label="Mesaj" type="number" value={stat.messages} onChange={(v:any) => handleUpdateStat(idx, 'messages', v)} />
+                              <AdminInput label="Ziyaret" type="number" value={stat.visits} onChange={(v:any) => handleUpdateStat(idx, 'visits', v)} />
+                           </div>
+                        </div>
+                      ))}
+                   </div>
+                </section>
+
+                <div className="pt-10">
+                  <button onClick={() => { setActiveTab('dashboard'); window.scrollTo(0,0); }} className="w-full py-8 bg-[#001E3C] text-white rounded-[2.5rem] font-black text-xl shadow-2xl transition-all uppercase tracking-widest">GÜNCEL RAPORU YAYINLA</button>
+                </div>
+             </div>
+          </div>
+        )}
+
+        {/* --- RAPOR PANELİ (Dashboard) --- */}
+        {activeTab === 'dashboard' && currentProperty && (
+          <div className="max-w-6xl mx-auto space-y-12 animate-in fade-in duration-700 pb-20 text-[#001E3C]">
+             <div className="flex flex-col lg:flex-row justify-between items-start gap-8">
+                <div className="space-y-3">
+                   <div className="flex items-center gap-3">
+                      <span className="px-3 py-1 bg-[#001E3C] text-white text-[10px] font-black rounded-full uppercase tracking-widest">{currentProperty.id}</span>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-full">{calculateDaysOnMarket(currentProperty.listingDate)} GÜN AKTİF</span>
+                   </div>
+                   <h2 className="text-5xl font-black tracking-tight leading-tight">{currentProperty.title}</h2>
+                   <p className="flex items-center gap-3 text-slate-500 font-black text-xl"><MapPin size={24} className="text-red-400"/> {currentProperty.location}</p>
+                </div>
+                <div className="flex gap-4 w-full lg:w-auto">
+                   {isAdminAuthenticated && <button onClick={() => setActiveTab('edit')} className="p-6 bg-white border border-slate-200 rounded-[2rem] shadow-sm hover:shadow-lg transition-all"><Edit3 size={32}/></button>}
+                   <button onClick={handleGenerateAISummary} disabled={isGenerating} className="flex-1 lg:flex-none px-12 py-6 bg-[#001E3C] text-white rounded-[2rem] font-black shadow-2xl flex items-center justify-center gap-4 active:scale-95 transition-all">
+                     {isGenerating ? <Loader2 size={24} className="animate-spin"/> : <Sparkles size={24} className="text-amber-300"/>} AI ANALİZİ
+                   </button>
+                </div>
+             </div>
+
+             <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                <DashboardStat label="Toplam Görüntüleme" value={currentProperty.stats?.reduce((acc,s)=>acc+s.views, 0) || 0} icon={<Eye size={28}/>} color="blue" />
+                <DashboardStat label="Emsal Piyasa Değeri" value={`₺${(currentProperty.market?.comparablePrice || 0).toLocaleString()}`} icon={<Target size={28}/>} color="indigo" />
+                <DashboardStat label="Aktif Teklifler" value={currentProperty.offers?.filter(o => o.status === 'Beklemede').length || 0} icon={<Wallet size={28}/>} color="emerald" />
+                <DashboardStat label="Güncel Satış Fiyatı" value={`₺${currentProperty.currentPrice.toLocaleString()}`} icon={<DollarSign size={28}/>} color="red" />
+             </div>
+
+             <div className="space-y-6">
+                <div className="flex items-center gap-3 border-l-4 border-[#001E3C] pl-6 mb-4">
+                    <h3 className="text-3xl font-black uppercase tracking-tighter">İstatistiksel Karşılaştırma</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                    <div className="lg:col-span-2 bg-white p-10 rounded-[3rem] shadow-xl border border-slate-50">
+                        <div className="flex justify-between items-center mb-10">
+                            <h4 className="text-xl font-black flex items-center gap-3 uppercase"><BarChart3 size={24} className="text-blue-500"/> Aylık Veri Özeti</h4>
+                        </div>
+                        <div className="h-[400px] w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={currentProperty.stats}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                    <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 'bold', fill: '#94a3b8'}} />
+                                    <YAxis hide />
+                                    <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={{borderRadius: '24px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)', fontWeight: 'bold'}} />
+                                    <Bar dataKey="views" name="İzlenme" fill="#001E3C" radius={[10, 10, 0, 0]} barSize={40} />
+                                    <Bar dataKey="favorites" name="Favori" fill="#f43f5e" radius={[10, 10, 0, 0]} barSize={40} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+
+                    <div className="space-y-6">
+                        {statComparison ? (
+                            <div className="bg-white p-8 rounded-[2.5rem] shadow-lg border border-slate-50 flex flex-col justify-between h-full">
+                                <div className="space-y-6">
+                                    <h4 className="text-lg font-black uppercase tracking-tight text-[#001E3C] border-b pb-4">Aylar Arası Fark</h4>
+                                    <ComparisonRow label="İzlenme Trendi" value={statComparison.viewsDiff} month={statComparison.currMonth} />
+                                    <ComparisonRow label="Favori Kazanımı" value={statComparison.favsDiff} month={statComparison.currMonth} />
+                                    <ComparisonRow label="Fiziksel Ziyaret" value={statComparison.visitsDiff} month={statComparison.currMonth} />
+                                </div>
+                                <div className="mt-8 p-6 bg-slate-50 rounded-2xl border border-slate-100 italic text-xs font-bold text-slate-500">
+                                    * {statComparison.prevMonth} - {statComparison.currMonth} karşılaştırmasıdır.
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="bg-white p-10 rounded-[2.5rem] shadow-lg border border-slate-50 text-center flex flex-col items-center justify-center gap-4 text-slate-400 font-bold h-full">
+                                <Activity size={48} className="opacity-20" />
+                                <p>Karşılaştırma için yeterli veri girilmedi.</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+             </div>
+
+             <div className="space-y-6">
+                <div className="flex items-center gap-3 border-l-4 border-emerald-500 pl-6 mb-4">
+                    <h3 className="text-3xl font-black uppercase tracking-tighter">Fiyat Hareketliliği</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                    {currentProperty.priceHistory && currentProperty.priceHistory.length > 0 ? (
+                        [...currentProperty.priceHistory].reverse().map((ph, idx) => {
+                            const prevPh = currentProperty.priceHistory[currentProperty.priceHistory.length - idx - 2];
+                            const diff = prevPh ? ph.amount - prevPh.amount : 0;
+                            const isDown = diff < 0;
+
+                            return (
+                                <div key={idx} className="bg-white p-8 rounded-[2.5rem] shadow-lg border border-slate-50 space-y-4 group hover:border-emerald-200 transition-all">
+                                    <div className="flex justify-between items-start">
+                                        <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+                                            <DollarSign size={20} />
+                                        </div>
+                                        <span className="text-[10px] font-black text-slate-400 bg-slate-100 px-3 py-1 rounded-full">{ph.date}</span>
+                                    </div>
+                                    <div>
+                                        <p className="text-2xl font-black text-[#001E3C]">₺{ph.amount.toLocaleString()}</p>
+                                        {diff !== 0 && (
+                                            <div className={`flex items-center gap-1 text-[11px] font-black mt-2 ${isDown ? 'text-emerald-500' : 'text-red-500'}`}>
+                                                {isDown ? <ArrowDownRight size={14} /> : <ArrowUpRight size={14} />}
+                                                ₺{Math.abs(diff).toLocaleString()} {isDown ? 'İndirim' : 'Artış'}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })
+                    ) : (
+                        <div className="col-span-full bg-white p-10 rounded-[2.5rem] text-center font-bold text-slate-400 border-2 border-dashed">
+                            Fiyat geçmişi kaydı bulunamadı.
+                        </div>
+                    )}
+                </div>
+             </div>
+
+             <div className="space-y-6">
+                <div className="flex items-center gap-3 border-l-4 border-indigo-500 pl-6 mb-4">
+                    <h3 className="text-3xl font-black uppercase tracking-tighter">Piyasa Rekabet Analizi</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                    <div className="bg-[#001E3C] p-10 rounded-[3.5rem] text-white shadow-2xl relative overflow-hidden group">
+                        <div className="relative z-10 space-y-8">
+                            <div className="flex items-center gap-4">
+                                <Scale size={36} className="text-blue-400"/>
+                                <h4 className="text-2xl font-black">Fiyat Konumlandırma</h4>
+                            </div>
+                            <div className="flex items-end gap-6 border-b border-white/10 pb-10">
+                                <div>
+                                    <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-2">Güncel Fiyat</p>
+                                    <p className="text-3xl font-black text-white">₺{currentProperty.currentPrice.toLocaleString()}</p>
+                                </div>
+                                <div className="flex-1 h-1 bg-white/10 relative rounded-full mb-4">
+                                    <div className="absolute top-1/2 -translate-y-1/2 left-[45%] w-4 h-4 bg-blue-400 rounded-full shadow-[0_0_15px_rgba(96,165,250,0.8)]"></div>
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-2">Piyasa Emsal</p>
+                                    <p className="text-3xl font-black text-blue-400">₺{(currentProperty.market?.comparablePrice || 0).toLocaleString()}</p>
+                                </div>
+                            </div>
+                            <p className="text-lg font-medium italic text-white/70">
+                                {currentProperty.currentPrice > (currentProperty.market?.comparablePrice || 0) 
+                                    ? "Mülkünüz piyasa ortalamasının üzerinde konumlanmıştır."
+                                    : "Mülkünüz rekabetçi bir fiyata sahiptir. Hızlı satış potansiyeli yüksektir."}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <InventoryCard 
+                            label="Binadaki Rekabet" 
+                            count={currentProperty.market?.buildingUnitsCount || 0} 
+                            desc="Binadaki rakip satılık üniteler."
+                            status={currentProperty.market?.buildingUnitsCount > 2 ? 'Yüksek' : 'Düşük'}
+                            statusColor={currentProperty.market?.buildingUnitsCount > 2 ? 'red' : 'emerald'}
+                        />
+                        <InventoryCard 
+                            label="Bölge Stok Yoğunluğu" 
+                            count={currentProperty.market?.neighborhoodUnitsCount || 0} 
+                            desc="Mahalledeki benzer ilan sayısı."
+                            status={currentProperty.market?.neighborhoodUnitsCount > 10 ? 'Yoğun' : 'Az'}
+                            statusColor={currentProperty.market?.neighborhoodUnitsCount > 10 ? 'amber' : 'emerald'}
+                        />
+                    </div>
+                </div>
+             </div>
+
+             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                <div className="bg-white p-10 rounded-[3rem] border border-slate-50 shadow-xl space-y-8">
+                   <h4 className="text-2xl font-black flex items-center gap-3"><Wallet size={28} className="text-emerald-500"/> Alıcı Teklifleri</h4>
+                   <div className="space-y-4 max-h-[350px] overflow-y-auto pr-3 custom-scrollbar">
+                      {(!currentProperty.offers || currentProperty.offers.length === 0) ? (
+                        <div className="py-24 text-center text-slate-300 font-black text-xl italic">Henüz resmi teklif bulunmuyor...</div>
+                      ) : (
+                        currentProperty.offers.map(offer => (
+                          <div key={offer.id} className="flex items-center justify-between p-7 bg-slate-50 rounded-[2.5rem] border border-slate-100">
+                             <div className="flex items-center gap-5">
+                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-2xl shadow-inner ${offer.status === 'Reddedildi' ? 'bg-red-50 text-red-400' : 'bg-white text-[#001E3C]'}`}>{offer.bidder.charAt(0)}</div>
+                                <div><p className="font-black text-xl">{offer.bidder.substring(0,2)}***</p><p className="text-[10px] font-black text-slate-400 uppercase">{offer.status} • {offer.date}</p></div>
+                             </div>
+                             <p className={`font-black text-2xl ${offer.status === 'Reddedildi' ? 'text-red-300 line-through' : 'text-[#001E3C]'}`}>₺{offer.amount.toLocaleString()}</p>
+                          </div>
+                        ))
+                      )}
+                   </div>
+                </div>
+                
+                <div className="bg-[#001E3C] p-12 rounded-[3.5rem] text-white flex flex-col justify-between shadow-2xl relative overflow-hidden group">
+                   <div className="space-y-10">
+                      <div className="flex items-center gap-4"><MessageCircle size={40} className="text-blue-400"/><h4 className="text-3xl font-black">Danışman Görüşü</h4></div>
+                      <p className="text-3xl font-medium italic text-white/80 leading-relaxed group-hover:text-white transition-colors duration-500">"{currentProperty.agentNotes || 'Mülkünüz için en iyi satış stratejisini kurguluyoruz.'}"</p>
+                   </div>
+                   <div className="mt-16 pt-10 border-t border-white/10 flex items-center justify-between">
+                      <div className="flex items-center gap-5">
+                         <div className="w-20 h-20 bg-white/10 rounded-2xl flex items-center justify-center text-blue-400"><UserCheck size={40}/></div>
+                         <div><p className="text-[11px] font-black text-white/40 uppercase tracking-widest mb-1">Portföy Yöneticisi</p><p className="text-2xl font-black">{currentProperty.agentName || 'TÜRKWEST Danışmanı'}</p></div>
+                      </div>
+                      {currentProperty.agentPhone && <a href={`tel:${currentProperty.agentPhone}`} className="w-20 h-20 bg-blue-500 text-white rounded-2xl flex items-center justify-center shadow-2xl active:scale-90 transition-transform"><Phone size={36}/></a>}
+                   </div>
+                </div>
+             </div>
+
+             {aiSummary && (
+               <div className="bg-white p-12 rounded-[4rem] shadow-2xl border border-blue-50 relative overflow-hidden flex flex-col justify-center animate-in zoom-in duration-500">
+                  <div className="relative z-10 space-y-6">
+                      <h4 className="text-3xl font-black text-[#001E3C] flex items-center gap-4"><Sparkles size={40} className="text-amber-500"/> AI Stratejik Analiz</h4>
+                      <div className="prose max-w-none text-[#001E3C] leading-relaxed font-bold text-2xl italic whitespace-pre-line">"{aiSummary}"</div>
+                  </div>
+               </div>
+             )}
+          </div>
+        )}
+
+        {/* --- PORTFÖY LİSTESİ --- */}
+        {activeTab === 'propertyList' && isAdminAuthenticated && (
+          <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in">
+             <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                <h2 className="text-3xl font-black text-[#001E3C]">Portföy Merkezi</h2>
+                <button onClick={() => {
+                   const id = `west-${Math.floor(100+Math.random()*900)}`;
+                   const currentMonth = MONTHS_LIST[new Date().getMonth()];
+                   const newProp: Property = { 
+                     id, title: 'Yeni İlan', location: 'Rize', image: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=1000&q=80',
+                     currentPrice: 0, priceHistory: [], agentNotes: '', clientFeedback: [], offers: [], 
+                     stats: [{ month: currentMonth, views: 0, favorites: 0, messages: 0, calls: 0, visits: 0 }],
+                     market: { comparablePrice: 0, buildingUnitsCount: 0, neighborhoodUnitsCount: 0, avgSaleDurationDays: 0 },
+                     agentName: 'Ekip', agentPhone: '', listingDate: new Date().toISOString().split('T')[0], viewCountByClient: 0
+                   };
+                   setProperties(prev => [...prev, newProp]);
+                   setSelectedPropertyId(id);
+                   setActiveTab('edit');
+                }} className="w-full sm:w-auto px-10 py-4 bg-[#001E3C] text-white rounded-2xl font-black flex items-center justify-center gap-2 shadow-xl"><Plus size={20}/> Yeni İlan Ekle</button>
+             </div>
+             <div className="relative">
+                <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={24}/>
+                <input type="text" placeholder="Portföy kodu veya başlık ara..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-16 pr-8 py-5 bg-white border border-slate-200 rounded-[2.5rem] outline-none text-[#001E3C] font-bold shadow-sm" />
+             </div>
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+                {filteredProperties.map(p => (
+                  <div key={p.id} className="bg-white rounded-[3rem] overflow-hidden border border-slate-100 shadow-md hover:shadow-2xl transition-all group cursor-pointer" onClick={() => { setSelectedPropertyId(p.id); setActiveTab('dashboard'); }}>
+                     <div className="h-60 relative overflow-hidden">
+                       <img src={p.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                       <div className="absolute top-5 left-5 px-5 py-2 bg-[#001E3C]/90 backdrop-blur-md text-white rounded-full text-[11px] font-black">{p.id}</div>
+                       <div className="absolute bottom-5 right-5 px-4 py-2 bg-white/90 backdrop-blur-md text-[#001E3C] rounded-full text-[10px] font-black shadow-sm">{calculateDaysOnMarket(p.listingDate)} GÜN</div>
+                     </div>
+                     <div className="p-8 space-y-5">
+                        <h4 className="font-black text-xl text-[#001E3C] line-clamp-1">{p.title}</h4>
+                        <div className="flex gap-4 pt-2">
+                           <button onClick={(e) => { e.stopPropagation(); setSelectedPropertyId(p.id); setActiveTab('dashboard'); }} className="flex-1 py-4 bg-[#001E3C] text-white rounded-[1.5rem] text-xs font-black">ANALİZ RAPORU</button>
+                           <button onClick={(e) => { e.stopPropagation(); setSelectedPropertyId(p.id); setActiveTab('edit'); }} className="p-4 bg-slate-50 text-slate-400 rounded-[1.5rem] hover:text-[#001E3C] transition-colors"><Edit3 size={24}/></button>
+                        </div>
+                     </div>
+                  </div>
+                ))}
+             </div>
           </div>
         )}
 
@@ -540,448 +981,7 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* --- MÜŞTERİ YÖNETİMİ --- */}
-        {activeTab === 'customers' && isAdminAuthenticated && (
-          <div className="max-w-5xl mx-auto space-y-8 animate-in slide-in-from-bottom-5">
-            <h2 className="text-3xl font-black text-[#001E3C]">Müşteri Kaydı (CRM)</h2>
-            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
-              <h3 className="text-lg font-black text-[#001E3C] flex items-center gap-2"><Plus size={20}/> Yeni Müşteri Ekle</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <AdminInput label="Ad Soyad" value={newCustomer.name} onChange={(v:any) => setNewCustomer({...newCustomer, name: v})} />
-                <AdminInput label="Telefon" value={newCustomer.phone} onChange={(v:any) => setNewCustomer({...newCustomer, phone: v})} />
-                <AdminInput label="Bütçe (₺)" type="number" value={newCustomer.budget} onChange={(v:any) => setNewCustomer({...newCustomer, budget: v})} />
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Mahalle Tercihi</label>
-                  <select value={newCustomer.preferredNeighborhood} onChange={e => setNewCustomer({...newCustomer, preferredNeighborhood: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none text-[#001E3C]">
-                    {RIZE_NEIGHBORHOODS.map(n => <option key={n} value={n}>{n}</option>)}
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Bina Yaşı Tercihi</label>
-                  <select value={newCustomer.preferredBuildingAge} onChange={e => setNewCustomer({...newCustomer, preferredBuildingAge: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none text-[#001E3C]">
-                    <option value="0-5">0-5 Yaş (Sıfır)</option>
-                    <option value="5-15">5-15 Yaş</option>
-                    <option value="15+">15+ Yaş</option>
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Kat Tercihi</label>
-                  <select value={newCustomer.preferredFloor} onChange={e => setNewCustomer({...newCustomer, preferredFloor: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none text-[#001E3C]">
-                    <option value="Bahçe Katı">Bahçe Katı</option>
-                    <option value="Ara Kat">Ara Kat</option>
-                    <option value="En Üst Kat">En Üst Kat</option>
-                  </select>
-                </div>
-                <div className="md:col-span-2 lg:col-span-3 space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Özel Notlar</label>
-                  <textarea value={newCustomer.notes} onChange={e => setNewCustomer({...newCustomer, notes: e.target.value})} placeholder="Örn: Geniş balkonlu olsun, asansör şart..." className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none h-24 resize-none text-[#001E3C]"></textarea>
-                </div>
-              </div>
-              <button onClick={handleAddCustomer} className="w-full py-4 bg-[#001E3C] text-white rounded-xl font-black text-sm uppercase tracking-widest shadow-lg">KAYDI TAMAMLA</button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-20">
-              {customers.map(c => (
-                <div key={c.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-4 group">
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center font-black text-xl">{c.name.charAt(0)}</div>
-                      <div><p className="font-black text-lg text-[#001E3C]">{c.name}</p><p className="text-xs font-bold text-slate-400">{c.phone}</p></div>
-                    </div>
-                    <button onClick={() => setCustomers(prev => prev.filter(x => x.id !== c.id))} className="p-2 text-red-400 opacity-0 group-hover:opacity-100 transition-all hover:bg-red-50 rounded-lg"><Trash2 size={18}/></button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 text-xs font-bold text-[#001E3C]">
-                    <div className="bg-slate-50 p-3 rounded-xl"><p className="text-[9px] text-slate-400 uppercase">Tercih</p>{c.preferredNeighborhood}</div>
-                    <div className="bg-slate-50 p-3 rounded-xl"><p className="text-[9px] text-slate-400 uppercase">Kat/Yaş</p>{c.preferredFloor} • {c.preferredBuildingAge} Yaş</div>
-                  </div>
-                  {c.notes && <p className="text-xs text-slate-500 font-medium italic border-l-2 border-indigo-200 pl-3">"{c.notes}"</p>}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* --- DÜZENLEME SEKİMESİ --- */}
-        {activeTab === 'edit' && currentProperty && (
-          <div className="max-w-4xl mx-auto space-y-12 animate-in slide-in-from-right-10 pb-20">
-             <div className="flex justify-between items-center">
-                <button onClick={() => setActiveTab('propertyList')} className="flex items-center gap-2 text-slate-500 font-bold hover:text-[#001E3C]"><ArrowLeft size={20}/> Geri Dön</button>
-                <div className="flex items-center gap-4">
-                  <button onClick={() => handleDeleteProperty(currentProperty.id)} className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-500 rounded-xl text-sm font-bold hover:bg-red-600 hover:text-white transition-all shadow-sm"><Trash2 size={18}/> Portföyü Sil</button>
-                </div>
-             </div>
-             
-             <div className="bg-white rounded-[3rem] p-8 lg:p-12 shadow-xl border border-slate-100 space-y-16">
-                
-                <section className="space-y-8">
-                   <h3 className="text-xl font-black text-[#001E3C] border-b pb-4 flex items-center gap-3"><Info size={24} className="text-blue-500"/> Temel Bilgiler</h3>
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      <AdminInput label="İlan Başlığı" value={currentProperty.title} onChange={(v:any) => updatePropertyData('title', v)} />
-                      <AdminInput label="Konum / Adres" value={currentProperty.location} onChange={(v:any) => updatePropertyData('location', v)} />
-                      <AdminInput label="Mevcut Satış Fiyatı (₺)" type="number" value={currentProperty.currentPrice} onChange={(v:any) => updatePropertyData('currentPrice', v)} />
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">İlan Başlangıç Tarihi</label>
-                        <input type="date" value={currentProperty.listingDate || ''} onChange={e => updatePropertyData('listingDate', e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none text-[#001E3C]" />
-                      </div>
-                      <div className="space-y-1 col-span-1 md:col-span-2">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Mülk Görseli URL</label>
-                        <div className="flex gap-4">
-                           <input type="text" placeholder="URL girin" value={currentProperty.image} onChange={(e) => updatePropertyData('image', e.target.value)} className="flex-1 p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:border-[#001E3C] text-[#001E3C]" />
-                           <button onClick={() => fileInputRef.current?.click()} className="px-6 bg-white border border-slate-200 text-[#001E3C] rounded-2xl font-bold flex items-center gap-2 hover:bg-slate-50 shrink-0"><Upload size={18}/> Dosya Seç</button>
-                           <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} className="hidden" />
-                        </div>
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Sorumlu Danışman</label>
-                        <select value={agents.find(a => a.name === currentProperty.agentName)?.id || ""} onChange={(e) => { const selected = agents.find(a => a.id === e.target.value); if (selected) { updatePropertyData('agentName', selected.name); updatePropertyData('agentPhone', selected.phone); } }} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none text-[#001E3C]">
-                          <option value="">Seçiniz...</option>
-                          {agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                        </select>
-                      </div>
-                      <AdminInput label="Danışman Telefon" value={currentProperty.agentPhone || ''} onChange={(v:any) => updatePropertyData('agentPhone', v)} />
-                   </div>
-                   <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Özel Danışman Notu</label>
-                      <textarea value={currentProperty.agentNotes} onChange={(e) => updatePropertyData('agentNotes', e.target.value)} placeholder="Müşteriye özel notunuz..." className="w-full p-5 bg-slate-50 border border-slate-200 rounded-3xl text-sm font-bold outline-none h-32 resize-none text-[#001E3C]"></textarea>
-                   </div>
-                </section>
-
-                <section className="space-y-8">
-                   <h3 className="text-xl font-black text-[#001E3C] border-b pb-4 flex items-center gap-3"><Building2 size={24} className="text-emerald-500"/> Piyasa ve Stok Verileri</h3>
-                   <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                      <AdminInput label="Emsal Daire Değeri (₺)" type="number" value={currentProperty.market?.comparablePrice} onChange={(v:any) => updateMarketData('comparablePrice', v)} />
-                      <AdminInput label="Binadaki Satılık Sayısı" type="number" value={currentProperty.market?.buildingUnitsCount} onChange={(v:any) => updateMarketData('buildingUnitsCount', v)} />
-                      <AdminInput label="Mahalledeki Satılık Sayısı" type="number" value={currentProperty.market?.neighborhoodUnitsCount} onChange={(v:any) => updateMarketData('neighborhoodUnitsCount', v)} />
-                   </div>
-                </section>
-
-                <section className="space-y-8">
-                   <h3 className="text-xl font-black text-[#001E3C] border-b pb-4 flex items-center gap-3"><History size={24} className="text-indigo-500"/> Fiyat Değişiklik Geçmişi</h3>
-                   <div className="flex flex-col md:flex-row gap-4 items-end bg-slate-50 p-6 rounded-3xl">
-                      <AdminInput label="Tutar (₺)" type="number" value={newPriceUpdate.amount} onChange={(v:any) => setNewPriceUpdate({...newPriceUpdate, amount: v})} />
-                      <div className="space-y-1 flex-1">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Değişim Tarihi</label>
-                        <input type="date" value={newPriceUpdate.date} onChange={e => setNewPriceUpdate({...newPriceUpdate, date: e.target.value})} className="w-full p-4 bg-white border border-slate-200 rounded-2xl text-sm font-bold outline-none text-[#001E3C]" />
-                      </div>
-                      <button onClick={handleAddPriceUpdate} className="px-10 py-4 bg-[#001E3C] text-white rounded-2xl font-black text-sm shadow-lg active:scale-95 transition-all">EKLE</button>
-                   </div>
-                   <div className="space-y-3">
-                      {(currentProperty.priceHistory || []).map((ph, idx) => (
-                        <div key={idx} className="flex justify-between items-center p-4 bg-white border border-slate-100 rounded-2xl shadow-sm">
-                           <div className="flex items-center gap-4">
-                              <DollarSign size={18} className="text-emerald-500"/>
-                              <span className="font-black text-[#001E3C]">₺{ph.amount.toLocaleString()}</span>
-                           </div>
-                           <div className="flex items-center gap-6">
-                              <span className="text-xs font-bold text-slate-400">{ph.date}</span>
-                              <button onClick={() => updatePropertyData('priceHistory', (currentProperty.priceHistory || []).filter((_, i) => i !== idx))} className="text-red-300 hover:text-red-500"><Trash2 size={16}/></button>
-                           </div>
-                        </div>
-                      ))}
-                   </div>
-                </section>
-
-                <section className="space-y-8">
-                   <h3 className="text-xl font-black text-[#001E3C] border-b pb-4 flex items-center gap-3"><Wallet size={24} className="text-amber-500"/> Gelen Teklifler</h3>
-                   <div className="flex flex-col md:flex-row gap-4 items-end bg-slate-50 p-6 rounded-3xl">
-                      <AdminInput label="Tutar (₺)" type="number" value={newOffer.amount} onChange={(v:any) => setNewOffer({...newOffer, amount: v})} />
-                      <AdminInput label="Teklif Veren" value={newOffer.bidder} onChange={(v:any) => setNewOffer({...newOffer, bidder: v})} />
-                      <button onClick={handleAddOffer} className="px-10 py-4 bg-[#001E3C] text-white rounded-2xl font-black text-sm shadow-lg active:scale-95 transition-all">KAYDET</button>
-                   </div>
-                   <div className="space-y-3">
-                      {(currentProperty.offers || []).map((offer) => (
-                        <div key={offer.id} className="flex justify-between items-center p-5 bg-white border border-slate-100 rounded-2xl shadow-sm">
-                           <div>
-                              <p className="font-black text-[#001E3C]">₺{offer.amount.toLocaleString()}</p>
-                              <p className="text-[10px] font-bold text-slate-400">{offer.bidder} • {offer.date}</p>
-                           </div>
-                           <button onClick={() => updatePropertyData('offers', (currentProperty.offers || []).filter(o => o.id !== offer.id))} className="text-red-300"><Trash2 size={18}/></button>
-                        </div>
-                      ))}
-                   </div>
-                </section>
-
-                <section className="space-y-8">
-                   <div className="flex justify-between items-end border-b pb-4">
-                      <h3 className="text-xl font-black text-[#001E3C] flex items-center gap-3"><Activity size={24} className="text-blue-500"/> İstatistikler</h3>
-                      <button onClick={handleAddMonth} className="text-xs font-black text-blue-600 flex items-center gap-2 hover:underline"><Plus size={16}/> YENİ AY EKLE</button>
-                   </div>
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      {(currentProperty.stats || []).map((stat, idx) => (
-                        <div key={idx} className="p-8 bg-slate-50 rounded-[2.5rem] space-y-6 relative group border border-slate-100 shadow-inner">
-                           <div className="flex justify-between items-center">
-                              <h4 className="text-lg font-black text-[#001E3C] bg-white px-6 py-2 rounded-full shadow-sm">{stat.month}</h4>
-                              <button onClick={() => updatePropertyData('stats', (currentProperty.stats || []).filter((_, i) => i !== idx))} className="text-red-300 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={20}/></button>
-                           </div>
-                           <div className="grid grid-cols-2 gap-4">
-                              <AdminInput label="İzlenme" type="number" value={stat.views} onChange={(v:any) => handleUpdateStat(idx, 'views', v)} />
-                              <AdminInput label="Favori" type="number" value={stat.favorites} onChange={(v:any) => handleUpdateStat(idx, 'favorites', v)} />
-                              <AdminInput label="Mesaj" type="number" value={stat.messages} onChange={(v:any) => handleUpdateStat(idx, 'messages', v)} />
-                              <AdminInput label="Ziyaret" type="number" value={stat.visits} onChange={(v:any) => handleUpdateStat(idx, 'visits', v)} />
-                           </div>
-                        </div>
-                      ))}
-                   </div>
-                </section>
-
-                <div className="pt-10">
-                  <button onClick={() => {setActiveTab('dashboard'); window.scrollTo(0,0);}} className="w-full py-8 bg-[#001E3C] text-white rounded-[2.5rem] font-black text-xl shadow-2xl active:scale-95 transition-all uppercase tracking-widest">GÜNCEL RAPORU YAYINLA</button>
-                </div>
-             </div>
-          </div>
-        )}
-
-        {/* --- PORTFÖY LİSTESİ --- */}
-        {activeTab === 'propertyList' && isAdminAuthenticated && (
-          <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in">
-             <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-                <h2 className="text-3xl font-black text-[#001E3C]">Portföy Merkezi</h2>
-                <button onClick={() => {
-                   const id = `west-${Math.floor(100+Math.random()*900)}`;
-                   const currentMonth = MONTHS_LIST[new Date().getMonth()];
-                   const newProp: Property = { 
-                     id, title: 'Yeni İlan', location: 'Rize', image: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=1000&q=80',
-                     currentPrice: 0, priceHistory: [], agentNotes: '', clientFeedback: [], offers: [], 
-                     stats: [{ month: currentMonth, views: 0, favorites: 0, messages: 0, calls: 0, visits: 0 }],
-                     market: { comparablePrice: 0, buildingUnitsCount: 0, neighborhoodUnitsCount: 0, avgSaleDurationDays: 0 },
-                     agentName: 'Ekip', agentPhone: '', listingDate: new Date().toISOString().split('T')[0], viewCountByClient: 0
-                   };
-                   setProperties(prev => [...prev, newProp]);
-                   setSelectedPropertyId(id);
-                   setActiveTab('edit');
-                }} className="w-full sm:w-auto px-10 py-4 bg-[#001E3C] text-white rounded-2xl font-black flex items-center justify-center gap-2 shadow-xl"><Plus size={20}/> Yeni İlan Ekle</button>
-             </div>
-             <div className="relative">
-                <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={24}/>
-                <input type="text" placeholder="Portföy kodu veya başlık ara..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-16 pr-8 py-5 bg-white border border-slate-200 rounded-[2.5rem] outline-none text-[#001E3C] font-bold shadow-sm focus:border-[#001E3C] transition-all" />
-             </div>
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-                {filteredProperties.map(p => (
-                  <div key={p.id} className="bg-white rounded-[3rem] overflow-hidden border border-slate-100 shadow-md hover:shadow-2xl transition-all group cursor-pointer" onClick={() => { setSelectedPropertyId(p.id); setActiveTab('dashboard'); }}>
-                     <div className="h-60 relative overflow-hidden">
-                       <img src={p.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
-                       <div className="absolute top-5 left-5 px-5 py-2 bg-[#001E3C]/90 backdrop-blur-md text-white rounded-full text-[11px] font-black">{p.id}</div>
-                       <div className="absolute bottom-5 right-5 px-4 py-2 bg-white/90 backdrop-blur-md text-[#001E3C] rounded-full text-[10px] font-black shadow-sm">{calculateDaysOnMarket(p.listingDate)} GÜN</div>
-                     </div>
-                     <div className="p-8 space-y-5">
-                        <h4 className="font-black text-xl text-[#001E3C] line-clamp-1">{p.title}</h4>
-                        <div className="flex gap-4 pt-2">
-                           <button onClick={(e) => { e.stopPropagation(); setSelectedPropertyId(p.id); setActiveTab('dashboard'); }} className="flex-1 py-4 bg-[#001E3C] text-white rounded-[1.5rem] text-xs font-black">ANALİZ RAPORU</button>
-                           <button onClick={(e) => { e.stopPropagation(); setSelectedPropertyId(p.id); setActiveTab('edit'); }} className="p-4 bg-slate-50 text-slate-400 rounded-[1.5rem] hover:text-[#001E3C] transition-colors"><Edit3 size={24}/></button>
-                        </div>
-                     </div>
-                  </div>
-                ))}
-             </div>
-          </div>
-        )}
-
-        {/* --- DETAYLI RAPOR / ANALİZ DASHBOARD --- */}
-        {activeTab === 'dashboard' && currentProperty && (
-          <div className="max-w-6xl mx-auto space-y-12 animate-in fade-in duration-700 pb-20 text-[#001E3C]">
-             {/* Header */}
-             <div className="flex flex-col lg:flex-row justify-between items-start gap-8">
-                <div className="space-y-3">
-                   <div className="flex items-center gap-3">
-                      <span className="px-3 py-1 bg-[#001E3C] text-white text-[10px] font-black rounded-full uppercase tracking-widest">{currentProperty.id}</span>
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-full">{calculateDaysOnMarket(currentProperty.listingDate)} GÜN AKTİF</span>
-                   </div>
-                   <h2 className="text-5xl font-black tracking-tight leading-tight">{currentProperty.title}</h2>
-                   <p className="flex items-center gap-3 text-slate-500 font-black text-xl"><MapPin size={24} className="text-red-400"/> {currentProperty.location}</p>
-                </div>
-                <div className="flex gap-4 w-full lg:w-auto">
-                   {isAdminAuthenticated && <button onClick={() => setActiveTab('edit')} className="p-6 bg-white border border-slate-200 rounded-[2rem] shadow-sm hover:shadow-lg transition-all"><Edit3 size={32}/></button>}
-                   <button onClick={handleGenerateAISummary} disabled={isGenerating} className="flex-1 lg:flex-none px-12 py-6 bg-[#001E3C] text-white rounded-[2rem] font-black shadow-2xl flex items-center justify-center gap-4 active:scale-95 transition-all">
-                     {isGenerating ? <Loader2 size={24} className="animate-spin"/> : <Sparkles size={24} className="text-amber-300"/>} AI STRATEJİK ANALİZ
-                   </button>
-                </div>
-             </div>
-
-             {/* Quick Stats Grid */}
-             <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                <DashboardStat label="Toplam Görüntüleme" value={currentProperty.stats?.reduce((acc,s)=>acc+s.views, 0) || 0} icon={<Eye size={28}/>} color="blue" />
-                <DashboardStat label="Emsal Piyasa Değeri" value={`₺${(currentProperty.market?.comparablePrice || 0).toLocaleString()}`} icon={<Target size={28}/>} color="indigo" />
-                <DashboardStat label="Gelen Teklifler" value={currentProperty.offers?.length || 0} icon={<Wallet size={28}/>} color="emerald" />
-                <DashboardStat label="Güncel Satış Fiyatı" value={`₺${currentProperty.currentPrice.toLocaleString()}`} icon={<DollarSign size={28}/>} color="red" />
-             </div>
-
-             {/* Karşılaştırmalı Aylık Analiz - DETAYLI ALAN */}
-             <div className="space-y-6">
-                <div className="flex items-center gap-3 border-l-4 border-[#001E3C] pl-6 mb-4">
-                    <h3 className="text-3xl font-black uppercase tracking-tighter">Karşılaştırmalı Performans Analizi</h3>
-                </div>
-                
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-                    <div className="lg:col-span-2 bg-white p-10 rounded-[3rem] shadow-xl border border-slate-50">
-                        <div className="flex justify-between items-center mb-10">
-                            <h4 className="text-xl font-black flex items-center gap-3 uppercase"><BarChart3 size={24} className="text-blue-500"/> Aylık Veri Karşılaştırması</h4>
-                            <div className="flex gap-4 text-[10px] font-black uppercase text-slate-400">
-                                <div className="flex items-center gap-2"><div className="w-3 h-3 bg-[#001E3C] rounded-full"></div> İzlenme</div>
-                                <div className="flex items-center gap-2"><div className="w-3 h-3 bg-red-500 rounded-full"></div> Favori</div>
-                            </div>
-                        </div>
-                        <div className="h-[400px] w-full">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={currentProperty.stats}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                    <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 'bold', fill: '#94a3b8'}} />
-                                    <YAxis hide />
-                                    <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={{borderRadius: '24px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)', fontWeight: 'bold'}} />
-                                    <Bar dataKey="views" name="İzlenme" fill="#001E3C" radius={[10, 10, 0, 0]} barSize={40} />
-                                    <Bar dataKey="favorites" name="Favori" fill="#f43f5e" radius={[10, 10, 0, 0]} barSize={40} />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
-
-                    <div className="space-y-6">
-                        {statComparison ? (
-                            <>
-                                <div className="bg-white p-8 rounded-[2.5rem] shadow-lg border border-slate-50 flex flex-col justify-between h-full">
-                                    <div className="space-y-6">
-                                        <h4 className="text-lg font-black uppercase tracking-tight text-[#001E3C] border-b pb-4">Aylık Değişim Özetleri</h4>
-                                        <ComparisonRow label="İzlenme Trendi" value={statComparison.viewsDiff} month={statComparison.currMonth} />
-                                        <ComparisonRow label="Favori Kazanımı" value={statComparison.favsDiff} month={statComparison.currMonth} />
-                                        <ComparisonRow label="Fiziksel Ziyaret" value={statComparison.visitsDiff} month={statComparison.currMonth} />
-                                    </div>
-                                    <div className="mt-8 p-6 bg-slate-50 rounded-2xl border border-slate-100 italic text-xs font-bold text-slate-500">
-                                        * {statComparison.prevMonth} ayı verileri ile {statComparison.currMonth} ayı verileri baz alınarak hesaplanmıştır.
-                                    </div>
-                                </div>
-                            </>
-                        ) : (
-                            <div className="bg-white p-10 rounded-[2.5rem] shadow-lg border border-slate-50 text-center flex flex-col items-center justify-center gap-4 text-slate-400 font-bold">
-                                <Activity size={48} className="opacity-20" />
-                                <p>Karşılaştırmalı analiz için en az 2 aylık veri girişi gerekmektedir.</p>
-                            </div>
-                        )}
-                    </div>
-                </div>
-             </div>
-
-             {/* Piyasa ve Stok Verileri - FARKLI VE DEĞERLENDİRİLMİŞ ALAN */}
-             <div className="space-y-6">
-                <div className="flex items-center gap-3 border-l-4 border-indigo-500 pl-6 mb-4">
-                    <h3 className="text-3xl font-black uppercase tracking-tighter">Piyasa Rekabet & Stok Değerlendirmesi</h3>
-                </div>
-                
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                    <div className="bg-[#001E3C] p-10 rounded-[3.5rem] text-white shadow-2xl relative overflow-hidden group">
-                        <div className="relative z-10 space-y-8">
-                            <div className="flex items-center gap-4">
-                                <Scale size={36} className="text-blue-400"/>
-                                <h4 className="text-2xl font-black">Fiyat & Konumlandırma</h4>
-                            </div>
-                            <div className="flex items-end gap-6 border-b border-white/10 pb-10">
-                                <div>
-                                    <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-2">Sizin Fiyatınız</p>
-                                    <p className="text-3xl font-black text-white">₺{currentProperty.currentPrice.toLocaleString()}</p>
-                                </div>
-                                <div className="flex-1 h-1 bg-white/10 relative rounded-full mb-4">
-                                    <div className="absolute top-1/2 -translate-y-1/2 left-[45%] w-4 h-4 bg-blue-400 rounded-full shadow-[0_0_15px_rgba(96,165,250,0.8)]"></div>
-                                </div>
-                                <div>
-                                    <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-2">Emsal Ortalaması</p>
-                                    <p className="text-3xl font-black text-blue-400">₺{(currentProperty.market?.comparablePrice || 0).toLocaleString()}</p>
-                                </div>
-                            </div>
-                            <p className="text-lg font-medium italic text-white/70">
-                                {currentProperty.currentPrice > (currentProperty.market?.comparablePrice || 0) 
-                                    ? "Mülkünüz piyasa ortalamasının üzerinde konumlanmıştır. Bu durum seçici alıcı profilini hedeflerken, pazarlık payı stratejisini ön plana çıkarmaktadır."
-                                    : "Mülkünüz piyasa ortalamasına göre rekabetçi bir fiyata sahiptir. Bu konumlandırma, hızlı satış için ciddi bir avantaj sağlamaktadır."}
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <InventoryCard 
-                            label="Binadaki Rakip Sayısı" 
-                            count={currentProperty.market?.buildingUnitsCount || 0} 
-                            desc="Aynı bina içerisinde sizinle rekabet eden satılık üniteler."
-                            status={currentProperty.market?.buildingUnitsCount > 2 ? 'Yüksek Rekabet' : 'Düşük Rekabet'}
-                            statusColor={currentProperty.market?.buildingUnitsCount > 2 ? 'red' : 'emerald'}
-                        />
-                        <InventoryCard 
-                            label="Mahalledeki Stok Yoğunluğu" 
-                            count={currentProperty.market?.neighborhoodUnitsCount || 0} 
-                            desc="Bölgedeki benzer metrekare ve oda sayısına sahip ilanlar."
-                            status={currentProperty.market?.neighborhoodUnitsCount > 10 ? 'Yoğun Piyasa' : 'Butik Arz'}
-                            statusColor={currentProperty.market?.neighborhoodUnitsCount > 10 ? 'amber' : 'emerald'}
-                        />
-                    </div>
-                </div>
-             </div>
-
-             {/* Fiyat Trendi & AI Summary */}
-             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-slate-50">
-                   <h4 className="text-xl font-black mb-8 flex items-center gap-3 uppercase"><TrendingUp size={24} className="text-emerald-500"/> Fiyat Hareketliliği</h4>
-                   <div className="h-[300px] w-full">
-                     <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={currentProperty.priceHistory}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                          <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 'bold', fill: '#94a3b8'}} />
-                          <YAxis hide />
-                          <Tooltip formatter={(val: number) => `₺${val.toLocaleString()}`} contentStyle={{borderRadius: '24px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)', fontWeight: 'bold'}} />
-                          <Line type="stepAfter" dataKey="amount" name="Fiyat" stroke="#10b981" strokeWidth={6} dot={{ r: 8, fill: '#10b981', strokeWidth: 0 }} />
-                        </LineChart>
-                     </ResponsiveContainer>
-                   </div>
-                </div>
-
-                {aiSummary ? (
-                   <div className="bg-white p-12 rounded-[3rem] shadow-2xl border border-blue-50 relative overflow-hidden flex flex-col justify-center">
-                        <div className="relative z-10 space-y-6">
-                            <h4 className="text-2xl font-black text-[#001E3C] flex items-center gap-4"><Sparkles size={36} className="text-amber-500"/> AI Karar Destek Analizi</h4>
-                            <div className="prose max-w-none text-[#001E3C] leading-relaxed font-bold text-xl italic whitespace-pre-line">"{aiSummary}"</div>
-                        </div>
-                   </div>
-                ) : (
-                    <div className="bg-slate-100 p-12 rounded-[3rem] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-center gap-4">
-                        <Sparkles size={48} className="text-slate-300" />
-                        <p className="font-bold text-slate-400">Yapay zeka analizini başlatmak için yukarıdaki "AI ANALİZİ" butonuna tıklayınız.</p>
-                    </div>
-                )}
-             </div>
-
-             {/* Teklifler & Danışman Notu */}
-             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                <div className="bg-white p-10 rounded-[3rem] border border-slate-50 shadow-xl space-y-8">
-                   <h4 className="text-2xl font-black flex items-center gap-3"><Wallet size={28} className="text-emerald-500"/> Alıcı Teklifleri</h4>
-                   <div className="space-y-4 max-h-[350px] overflow-y-auto pr-3 custom-scrollbar">
-                      {(!currentProperty.offers || currentProperty.offers.length === 0) ? (
-                        <div className="py-20 text-center text-slate-300 font-black text-xl italic">Henüz resmi teklif girilmedi...</div>
-                      ) : (
-                        currentProperty.offers.map(offer => (
-                          <div key={offer.id} className="flex items-center justify-between p-7 bg-slate-50 rounded-[2rem] border border-slate-100">
-                             <div className="flex items-center gap-5">
-                                <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center font-black text-2xl shadow-inner">{offer.bidder.charAt(0)}</div>
-                                <div><p className="font-black text-xl">{offer.bidder.substring(0,2)}***</p><p className="text-[10px] font-black text-slate-400">{offer.date}</p></div>
-                             </div>
-                             <p className="font-black text-2xl text-[#001E3C]">₺{offer.amount.toLocaleString()}</p>
-                          </div>
-                        ))
-                      )}
-                   </div>
-                </div>
-                
-                <div className="bg-[#001E3C] p-12 rounded-[3.5rem] text-white flex flex-col justify-between shadow-2xl relative overflow-hidden">
-                   <div className="space-y-10">
-                      <div className="flex items-center gap-4"><MessageCircle size={40} className="text-blue-400"/><h4 className="text-3xl font-black">Danışman Görüşü</h4></div>
-                      <p className="text-2xl font-medium italic text-white/80 leading-relaxed">"{currentProperty.agentNotes || 'Mülkünüz için en iyi satış stratejisini kurguluyoruz. Süreç profesyonel ekibimiz tarafından titizlikle yönetilmektedir.'}"</p>
-                   </div>
-                   <div className="mt-16 pt-10 border-t border-white/10 flex items-center justify-between">
-                      <div className="flex items-center gap-5">
-                         <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center text-blue-400"><UserCheck size={36}/></div>
-                         <div><p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Portföy Yöneticisi</p><p className="text-2xl font-black">{currentProperty.agentName || 'TÜRKWEST Danışmanı'}</p></div>
-                      </div>
-                      {currentProperty.agentPhone && <a href={`tel:${currentProperty.agentPhone}`} className="w-16 h-16 bg-blue-500 text-white rounded-2xl flex items-center justify-center shadow-xl active:scale-95 transition-transform"><Phone size={32}/></a>}
-                   </div>
-                </div>
-             </div>
-          </div>
-        )}
-
-        {/* --- MÜŞTERİ TALEPLERİ (Thumbnail & Link korundu) --- */}
+        {/* --- TALEPLER --- */}
         {activeTab === 'notifications' && isAdminAuthenticated && (
           <div className="max-w-4xl mx-auto space-y-8 pb-20 animate-in fade-in">
              <h2 className="text-3xl font-black text-[#001E3C]">Müşteri Talepleri</h2>
@@ -1046,27 +1046,23 @@ const ComparisonRow = ({ label, value, month }: { label: string, value: number, 
         <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl group hover:bg-slate-100 transition-colors">
             <span className="text-sm font-black text-[#001E3C] uppercase tracking-tighter">{label}</span>
             <div className={`flex items-center gap-1 font-black ${isNeutral ? 'text-slate-400' : isUp ? 'text-emerald-500' : 'text-red-500'}`}>
-                {isUp ? <ArrowUpRight size={18} /> : isNeutral ? <Minus size={18} /> : <ArrowDownRight size={18} />}
+                {isUp ? <ArrowUpRight size={18} /> : isNeutral ? <div className="w-4 h-[2px] bg-slate-400"></div> : <ArrowDownRight size={18} />}
                 <span className="text-lg">{isNeutral ? '-%0' : `%${Math.abs(value)}`}</span>
             </div>
         </div>
     );
 };
 
-const Minus = ({ size }: { size: number }) => (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-);
-
 const InventoryCard = ({ label, count, desc, status, statusColor }: any) => {
     const colorClass = statusColor === 'red' ? 'bg-red-50 text-red-600' : statusColor === 'amber' ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600';
     return (
-        <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-50 flex flex-col justify-between">
+        <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-50 flex flex-col justify-between hover:shadow-2xl transition-all">
             <div className="space-y-4">
                 <div className="flex justify-between items-start">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</p>
-                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${colorClass}`}>{status}</span>
+                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${colorClass}`}>{status} Stok</span>
                 </div>
-                <h5 className="text-4xl font-black text-[#001E3C]">{count}</h5>
+                <h5 className="text-5xl font-black text-[#001E3C]">{count}</h5>
                 <p className="text-xs font-bold text-slate-400 leading-relaxed">{desc}</p>
             </div>
         </div>
