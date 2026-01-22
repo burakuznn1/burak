@@ -423,9 +423,13 @@ const App: React.FC = () => {
           <Award size={24} className="text-white"/>
           <span className="font-black text-sm tracking-tighter">TÜRKWEST</span>
         </div>
-        {isAdminAuthenticated && (
-          <button onClick={handleLogout} className="text-red-400 p-2"><LogOut size={20}/></button>
-        )}
+        <div className="flex items-center gap-2">
+          {!isAdminAuthenticated ? (
+             <button onClick={() => setShowLoginModal(true)} className="p-2 bg-white/10 rounded-lg text-white"><Lock size={20}/></button>
+          ) : (
+             <button onClick={handleLogout} className="text-red-400 p-2"><LogOut size={20}/></button>
+          )}
+        </div>
       </div>
 
       {/* Main Content Area */}
@@ -450,6 +454,8 @@ const App: React.FC = () => {
                <input type="text" placeholder="Örn: west-101" value={clientCodeInput} onChange={e => setClientCodeInput(e.target.value)} className="w-full px-6 py-5 bg-white border-2 border-slate-100 rounded-[2rem] text-center text-2xl font-black uppercase outline-none focus:border-[#001E3C] text-[#001E3C] shadow-sm" />
                <button className="w-full py-5 bg-[#001E3C] text-white rounded-[2rem] font-bold text-lg shadow-xl hover:bg-slate-800 transition-transform active:scale-95">Raporu Aç</button>
              </form>
+             {/* Admin Girişi için Mobil Alternatif Buton */}
+             <button onClick={() => setShowLoginModal(true)} className="lg:hidden mt-8 text-[10px] font-black text-slate-300 uppercase tracking-widest flex items-center gap-2">Yönetici Girişi <Lock size={12}/></button>
           </div>
         )}
 
@@ -1024,8 +1030,8 @@ const App: React.FC = () => {
 
       {/* YÖNETİCİ GİRİŞİ MODAL - PIN MERKEZDE VE GÖRÜNÜR */}
       {showLoginModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#001E3C]/90 backdrop-blur-xl p-4">
-          <div className="bg-white w-full max-w-sm rounded-[3rem] p-10 lg:p-12 text-center shadow-2xl animate-in zoom-in-90 duration-300">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#001E3C]/90 backdrop-blur-xl p-4 transition-all duration-300">
+          <div className="bg-white w-full max-w-sm rounded-[3rem] p-10 lg:p-12 text-center shadow-2xl animate-in zoom-in-90 duration-300 transform">
             <div className="w-16 h-16 bg-slate-50 text-[#001E3C] rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-inner"><Lock size={32}/></div>
             <h3 className="text-xl font-black mb-8 text-[#001E3C]">Yönetici Girişi</h3>
             <form onSubmit={handleLogin} className="space-y-5">
