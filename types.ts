@@ -42,6 +42,34 @@ export interface SurveyResponse {
   generalNote: string;
 }
 
+export interface Agent {
+  id: string;
+  name: string;
+  phone: string;
+}
+
+export interface SocialMediaTask {
+  id: string;
+  propertyId: string;
+  propertyName: string;
+  startDate: string;
+  endDate: string;
+  taskType: string; // Reels, Fotoğraf Yenileme, Reklam Çıkışı vb.
+  status: 'Planlandı' | 'Yayında' | 'Tamamlandı';
+}
+
+export interface Customer {
+  id: string;
+  name: string;
+  phone: string;
+  preferredSize: string; // 1+1, 2+1 vb.
+  preferredNeighborhood: string;
+  budget: number;
+  category: 'Satılık' | 'Kiralık';
+  lastContactDate: string;
+  notes: string;
+}
+
 export interface Property {
   id: string;
   title: string;
@@ -55,6 +83,8 @@ export interface Property {
   clientFeedback: ClientFeedback[];
   offers: Offer[];
   surveyResponse?: SurveyResponse;
+  agentName?: string;
+  agentPhone?: string;
 }
 
 export interface ClientReport {

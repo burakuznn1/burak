@@ -5,14 +5,15 @@ import {
   Navigation, Info, Edit3, Send, Lock, CheckCircle2, Plus, Trash2, Search, 
   Home, Award, Building2, Layers, MessageCircle, RefreshCw, Settings, 
   Loader2, User, Wallet, Timer, Target, ArrowLeft, History, DollarSign,
-  Bell, Inbox, Calendar, BarChart3, TrendingUp
+  Bell, Inbox, Calendar, BarChart3, TrendingUp, Phone, UserCheck, Share2,
+  CheckCircle, Clock, List, Users, Briefcase, FileText
 } from 'lucide-react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, 
   ResponsiveContainer, LineChart, Line
 } from 'recharts';
 import { createClient } from '@supabase/supabase-js';
-import { Property, PropertyStats, Offer, ClientFeedback, PricePoint } from './types.ts';
+import { Property, PropertyStats, Offer, ClientFeedback, PricePoint, Agent, SocialMediaTask, Customer } from './types.ts';
 import { generateReportSummary } from './services/geminiService.ts';
 
 const SUPABASE_URL = "https://vaafmxefgjofqcrnrnlw.supabase.co";
@@ -20,6 +21,13 @@ const SUPABASE_KEY = "sb_publishable_0Jtlb5Ds-ZoTBXiEFmxyAg_LNY5NQud";
 
 const ADMIN_PASSWORD = "west";
 const MONTHS_LIST = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+const RIZE_NEIGHBORHOODS = [
+  "Alipaşa", "Atmaca", "Bağdatlı", "Balsu", "Bozkale", "Camiönü", "Çamlıbel", "Çarşı", 
+  "Dağınıksu", "Dağsu", "Değirmendere", "Dereüstü", "Ekrem Orhon", "Eminettin", "Engindere", 
+  "Eskikale", "Fatih", "Gülbahar", "Hamidiye", "Hayrat", "İslampaşa", "İstiklal", "Kale", 
+  "Karasu", "Kaplıca", "Kavaklı", "Mermerdelen", "Müftü", "Paşaköy", "Pehlivantaşı", 
+  "Piriçelebi", "Portakallık", "Reşadiye", "Taşlıdere", "Tophane", "Yağlıtaş", "Yeniköy"
+];
 
 const INITIAL_PROPERTIES: Property[] = [
   {
@@ -28,6 +36,8 @@ const INITIAL_PROPERTIES: Property[] = [
     location: 'Beşiktaş, Yıldız Mahallesi',
     image: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1000&q=80',
     currentPrice: 18500000,
+    agentName: 'Can West',
+    agentPhone: '5551234567',
     priceHistory: [
       { date: '15.01.2024', amount: 19500000 },
       { date: '20.03.2024', amount: 19000000 },
@@ -51,8 +61,12 @@ const INITIAL_PROPERTIES: Property[] = [
 
 const App: React.FC = () => {
   const [properties, setProperties] = useState<Property[]>(INITIAL_PROPERTIES);
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [socialMediaTasks, setSocialMediaTasks] = useState<SocialMediaTask[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(() => localStorage.getItem('west_admin_auth') === 'true');
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'propertyList' | 'cloudSettings' | 'edit' | 'notifications'>('propertyList');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'propertyList' | 'agents' | 'calendar' | 'customers' | 'edit' | 'notifications'>('propertyList');
   const [passwordInput, setPasswordInput] = useState("");
   const [clientCodeInput, setClientCodeInput] = useState("");
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -69,6 +83,10 @@ const App: React.FC = () => {
   
   const [newOffer, setNewOffer] = useState({ amount: '', bidder: '' });
   const [newPriceUpdate, setNewPriceUpdate] = useState({ date: new Date().toLocaleDateString('tr-TR'), amount: '' });
+  const [newAgent, setNewAgent] = useState({ name: '', phone: '' });
+  const [newTask, setNewTask] = useState<Partial<SocialMediaTask>>({ propertyId: '', startDate: '', endDate: '', taskType: 'Instagram Reels', status: 'Planlandı' });
+  const [newCustomer, setNewCustomer] = useState<Partial<Customer>>({ name: '', phone: '', preferredSize: '2+1', preferredNeighborhood: 'Merkez', budget: 0, category: 'Satılık', lastContactDate: '', notes: '' });
+  
   const [clientNoteInput, setClientNoteInput] = useState("");
   const [clientRequestedPriceInput, setClientRequestedPriceInput] = useState("");
   const [showFeedbackSuccess, setShowFeedbackSuccess] = useState(false);
@@ -87,15 +105,25 @@ const App: React.FC = () => {
         try {
           const { data, error } = await supabase.from('portfolios').select('data').eq('id', 'main_database').single();
           if (!error && data?.data) {
-            setProperties(data.data);
-            localStorage.setItem('west_properties', JSON.stringify(data.data));
+            setProperties(data.data.properties || INITIAL_PROPERTIES);
+            setAgents(data.data.agents || []);
+            setSocialMediaTasks(data.data.socialMediaTasks || []);
+            setCustomers(data.data.customers || []);
             setIsLoadingCloud(false);
             return;
           }
         } catch (e) { console.error(e); }
       }
-      const saved = localStorage.getItem('west_properties');
-      if (saved) { try { setProperties(JSON.parse(saved)); } catch(e) {} }
+      const saved = localStorage.getItem('west_full_data');
+      if (saved) { 
+        try { 
+          const parsed = JSON.parse(saved);
+          setProperties(parsed.properties || INITIAL_PROPERTIES);
+          setAgents(parsed.agents || []);
+          setSocialMediaTasks(parsed.socialMediaTasks || []);
+          setCustomers(parsed.customers || []);
+        } catch(e) {} 
+      }
       setIsLoadingCloud(false);
     };
     initializeData();
@@ -103,16 +131,17 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (isLoadingCloud) return;
-    localStorage.setItem('west_properties', JSON.stringify(properties));
+    const fullData = { properties, agents, socialMediaTasks, customers };
+    localStorage.setItem('west_full_data', JSON.stringify(fullData));
     
     if (supabase && (isAdminAuthenticated || isClientMode)) {
       const sync = async () => {
-        try { await supabase.from('portfolios').upsert({ id: 'main_database', data: properties }); } catch (e) {}
+        try { await supabase.from('portfolios').upsert({ id: 'main_database', data: fullData }); } catch (e) {}
       };
       const timer = setTimeout(sync, 1500);
       return () => clearTimeout(timer);
     }
-  }, [properties, supabase, isAdminAuthenticated, isClientMode, isLoadingCloud]);
+  }, [properties, agents, socialMediaTasks, customers, supabase, isAdminAuthenticated, isClientMode, isLoadingCloud]);
 
   const currentProperty = useMemo(() => properties.find(p => p.id === selectedPropertyId), [properties, selectedPropertyId]);
   const filteredProperties = useMemo(() => properties.filter(p => p.title.toLowerCase().includes(searchTerm.toLowerCase()) || p.id.toLowerCase().includes(searchTerm.toLowerCase())), [properties, searchTerm]);
@@ -248,6 +277,46 @@ const App: React.FC = () => {
     setNewPriceUpdate({ date: new Date().toLocaleDateString('tr-TR'), amount: '' });
   };
 
+  const handleAddAgent = () => {
+    if (!newAgent.name || !newAgent.phone) return;
+    const agent: Agent = { id: Date.now().toString(), ...newAgent };
+    setAgents(prev => [...prev, agent]);
+    setNewAgent({ name: '', phone: '' });
+  };
+
+  const handleAddTask = () => {
+    if (!newTask.propertyId || !newTask.startDate || !newTask.endDate || !newTask.taskType) return;
+    const prop = properties.find(p => p.id === newTask.propertyId);
+    const task: SocialMediaTask = {
+      id: Date.now().toString(),
+      propertyId: newTask.propertyId!,
+      propertyName: prop?.title || 'Bilinmeyen Mülk',
+      startDate: newTask.startDate!,
+      endDate: newTask.endDate!,
+      taskType: newTask.taskType!,
+      status: (newTask.status as any) || 'Planlandı'
+    };
+    setSocialMediaTasks(prev => [...prev, task]);
+    setNewTask({ propertyId: '', startDate: '', endDate: '', taskType: 'Instagram Reels', status: 'Planlandı' });
+  };
+
+  const handleAddCustomer = () => {
+    if (!newCustomer.name || !newCustomer.phone) return;
+    const customer: Customer = {
+      id: Date.now().toString(),
+      name: newCustomer.name!,
+      phone: newCustomer.phone!,
+      preferredSize: newCustomer.preferredSize || '2+1',
+      preferredNeighborhood: newCustomer.preferredNeighborhood || 'Alipaşa',
+      budget: Number(newCustomer.budget || 0),
+      category: newCustomer.category as any || 'Satılık',
+      lastContactDate: newCustomer.lastContactDate || new Date().toISOString().split('T')[0],
+      notes: newCustomer.notes || ''
+    };
+    setCustomers(prev => [...prev, customer]);
+    setNewCustomer({ name: '', phone: '', preferredSize: '2+1', preferredNeighborhood: 'Alipaşa', budget: 0, category: 'Satılık', lastContactDate: '', notes: '' });
+  };
+
   const handleDeleteProperty = (id: string) => {
     if (window.confirm('Bu mülkü tamamen silmek istediğinize emin misiniz?')) {
       setProperties(prev => prev.filter(p => p.id !== id));
@@ -292,13 +361,17 @@ const App: React.FC = () => {
             <h1 className="font-black text-xl tracking-tighter">TÜRKWEST</h1>
           </div>
         </div>
-        <nav className="p-6 space-y-2 flex-1">
+        <nav className="p-6 space-y-2 flex-1 overflow-y-auto">
           {isAdminAuthenticated && !isClientMode ? (
             <>
               <NavItem icon={<Home size={20}/>} label="Portföy Merkezi" active={activeTab === 'propertyList'} onClick={() => setActiveTab('propertyList')} />
+              <NavItem icon={<Users size={20}/>} label="Müşteri Yönetimi" active={activeTab === 'customers'} onClick={() => setActiveTab('customers')} />
+              <NavItem icon={<UserCheck size={20}/>} label="Danışman Yönetimi" active={activeTab === 'agents'} onClick={() => setActiveTab('agents')} />
+              <NavItem icon={<Calendar size={20}/>} label="Pazarlama Takvimi" active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} />
               <NavItem icon={<Bell size={20}/>} label="Müşteri Talepleri" badge={totalNotifications} active={activeTab === 'notifications'} onClick={() => setActiveTab('notifications')} />
               {selectedPropertyId && (
                 <>
+                  <div className="pt-4 pb-2 px-6 text-[10px] font-black text-white/30 uppercase tracking-widest">Seçili Mülk</div>
                   <NavItem icon={<LayoutDashboard size={20}/>} label="Rapor" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
                   <NavItem icon={<Edit3 size={20}/>} label="Düzenle" active={activeTab === 'edit'} onClick={() => setActiveTab('edit')} />
                 </>
@@ -337,6 +410,187 @@ const App: React.FC = () => {
           </div>
         )}
 
+        {/* Müşteri Yönetimi */}
+        {activeTab === 'customers' && isAdminAuthenticated && (
+          <div className="max-w-5xl mx-auto space-y-8 animate-in slide-in-from-bottom-5">
+            <h2 className="text-3xl font-black text-[#001E3C]">Müşteri Kayıt</h2>
+            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
+              <h3 className="text-lg font-black text-[#001E3C] flex items-center gap-2"><Plus size={20}/> Yeni Müşteri Kaydı</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <AdminInput label="Ad Soyad" value={newCustomer.name} onChange={(v:any) => setNewCustomer({...newCustomer, name: v})} />
+                <AdminInput label="Telefon" value={newCustomer.phone} onChange={(v:any) => setNewCustomer({...newCustomer, phone: v})} />
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Aradığı Daire Büyüklüğü</label>
+                  <select value={newCustomer.preferredSize} onChange={e => setNewCustomer({...newCustomer, preferredSize: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none text-[#001E3C]">
+                    <option value="1+1">1+1</option>
+                    <option value="2+1">2+1</option>
+                    <option value="3+1">3+1</option>
+                    <option value="4+1">4+1</option>
+                    <option value="Villa">Villa</option>
+                    <option value="Dükkan">Dükkan</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Aradığı Mahalle (Rize)</label>
+                  <select value={newCustomer.preferredNeighborhood} onChange={e => setNewCustomer({...newCustomer, preferredNeighborhood: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none text-[#001E3C]">
+                    {RIZE_NEIGHBORHOODS.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
+                <AdminInput label="Bütçe (₺)" type="number" value={newCustomer.budget} onChange={(v:any) => setNewCustomer({...newCustomer, budget: v})} />
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Kategori</label>
+                  <select value={newCustomer.category} onChange={e => setNewCustomer({...newCustomer, category: e.target.value as any})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none text-[#001E3C]">
+                    <option value="Satılık">Satılık</option>
+                    <option value="Kiralık">Kiralık</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Son İletişim Tarihi</label>
+                  <input type="date" value={newCustomer.lastContactDate} onChange={e => setNewCustomer({...newCustomer, lastContactDate: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none text-[#001E3C]" />
+                </div>
+                <div className="md:col-span-2 space-y-1">
+                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Notlar</label>
+                   <textarea value={newCustomer.notes} onChange={e => setNewCustomer({...newCustomer, notes: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none h-20 resize-none text-[#001E3C]" placeholder="Müşteri talepleri, özel notlar..."></textarea>
+                </div>
+              </div>
+              <button onClick={handleAddCustomer} className="w-full py-4 bg-[#001E3C] text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg"><Plus size={20}/> Kaydı Tamamla</button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {customers.map(c => (
+                <div key={c.id} className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-4 group">
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-indigo-50 text-[#001E3C] rounded-2xl flex items-center justify-center"><User size={24}/></div>
+                      <div>
+                        <h4 className="font-black text-[#001E3C]">{c.name}</h4>
+                        <p className="text-xs font-bold text-slate-400">{c.phone}</p>
+                      </div>
+                    </div>
+                    <button onClick={() => setCustomers(prev => prev.filter(x => x.id !== c.id))} className="p-2 text-red-400 hover:bg-red-50 rounded-xl opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={18}/></button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-50">
+                    <div>
+                      <p className="text-[10px] font-black text-slate-400 uppercase">Tercih</p>
+                      <p className="text-xs font-bold text-[#001E3C]">{c.preferredSize} • {c.preferredNeighborhood}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black text-slate-400 uppercase">Bütçe</p>
+                      <p className="text-xs font-bold text-emerald-600">₺{Number(c.budget).toLocaleString()} ({c.category})</p>
+                    </div>
+                  </div>
+                  {c.notes && (
+                    <div className="bg-slate-50 p-3 rounded-xl">
+                      <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Notlar</p>
+                      <p className="text-xs font-medium text-slate-600 line-clamp-2">{c.notes}</p>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400">
+                    <Clock size={12}/> Son Temas: {c.lastContactDate}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Danışman Yönetimi */}
+        {activeTab === 'agents' && isAdminAuthenticated && (
+          <div className="max-w-4xl mx-auto space-y-8 animate-in slide-in-from-bottom-5">
+            <h2 className="text-3xl font-black text-[#001E3C]">Danışman Yönetimi</h2>
+            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
+              <h3 className="text-lg font-black text-[#001E3C] flex items-center gap-2"><Plus size={20}/> Yeni Danışman Ekle</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <AdminInput label="Danışman Adı Soyadı" value={newAgent.name} onChange={(v:any) => setNewAgent({...newAgent, name: v})} />
+                <AdminInput label="Telefon Numarası" value={newAgent.phone} onChange={(v:any) => setNewAgent({...newAgent, phone: v})} />
+              </div>
+              <button onClick={handleAddAgent} className="w-full py-4 bg-[#001E3C] text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg"><Plus size={20}/> Listeye Kaydet</button>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {agents.map(a => (
+                <div key={a.id} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between group">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-blue-50 text-[#001E3C] rounded-2xl flex items-center justify-center font-black">{a.name.charAt(0)}</div>
+                    <div><p className="font-black text-[#001E3C]">{a.name}</p><p className="text-xs font-bold text-slate-400">{a.phone}</p></div>
+                  </div>
+                  <button onClick={() => setAgents(prev => prev.filter(x => x.id !== a.id))} className="p-3 text-red-400 opacity-0 group-hover:opacity-100 hover:bg-red-50 rounded-xl transition-all"><Trash2 size={18}/></button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Pazarlama Takvimi */}
+        {activeTab === 'calendar' && isAdminAuthenticated && (
+          <div className="max-w-5xl mx-auto space-y-8 animate-in slide-in-from-bottom-5">
+            <h2 className="text-3xl font-black text-[#001E3C]">Pazarlama Takvimi</h2>
+            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
+              <h3 className="text-lg font-black text-[#001E3C] flex items-center gap-2"><Share2 size={20}/> Yeni Sosyal Medya Görevi</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Mülk Seçin</label>
+                  <select value={newTask.propertyId} onChange={e => setNewTask({...newTask, propertyId: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none text-[#001E3C]">
+                    <option value="">Seçiniz...</option>
+                    {properties.map(p => <option key={p.id} value={p.id}>{p.title} ({p.id})</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Görev Tipi</label>
+                  <select value={newTask.taskType} onChange={e => setNewTask({...newTask, taskType: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none text-[#001E3C]">
+                    <option value="Instagram Reels">Instagram Reels</option>
+                    <option value="Instagram Hikaye">Instagram Hikaye</option>
+                    <option value="Fotoğraf Yenileme">Fotoğraf Yenileme</option>
+                    <option value="Yapay Zeka Fotoğraf Seçimi">Yapay Zeka Fotoğraf Seçimi</option>
+                    <option value="Sarı Site Öne Çıkarma">Sarı Site Öne Çıkarma</option>
+                    <option value="Özel İçerik">Özel İçerik</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Başlangıç Tarihi</label>
+                  <input 
+                    type="date" 
+                    value={newTask.startDate} 
+                    onChange={e => setNewTask({...newTask, startDate: e.target.value})} 
+                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none text-[#001E3C]"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Bitiş Tarihi</label>
+                  <input 
+                    type="date" 
+                    value={newTask.endDate} 
+                    onChange={e => setNewTask({...newTask, endDate: e.target.value})} 
+                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none text-[#001E3C]"
+                  />
+                </div>
+              </div>
+              <button onClick={handleAddTask} className="w-full py-4 bg-[#001E3C] text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg"><CheckCircle size={20}/> Takvime Ekle</button>
+            </div>
+
+            <div className="space-y-4">
+              {socialMediaTasks.sort((a,b) => b.startDate.localeCompare(a.startDate)).map(task => (
+                <div key={task.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-[#001E3C] text-blue-400 rounded-2xl flex items-center justify-center"><Share2 size={24}/></div>
+                    <div>
+                      <p className="text-xs font-black text-blue-500 uppercase tracking-tighter">{task.taskType}</p>
+                      <h4 className="font-black text-[#001E3C]">{task.propertyName}</h4>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-8">
+                    <div className="text-center md:text-right">
+                       <p className="text-[10px] font-black text-slate-400 uppercase">Tarih Aralığı</p>
+                       <p className="text-xs font-bold text-[#001E3C]">{task.startDate} - {task.endDate}</p>
+                    </div>
+                    <button onClick={() => setSocialMediaTasks(prev => prev.filter(x => x.id !== task.id))} className="p-3 text-red-400 hover:bg-red-50 rounded-xl"><Trash2 size={18}/></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Portföy Listesi */}
         {activeTab === 'propertyList' && isAdminAuthenticated && (
           <div className="max-w-6xl mx-auto space-y-8">
@@ -350,7 +604,8 @@ const App: React.FC = () => {
                      id, title: 'Yeni İlan', location: '', image: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=1000&q=80',
                      currentPrice: 0, priceHistory: [], agentNotes: '', clientFeedback: [], offers: [], 
                      stats: [{ month: capitalizedMonth, views: 0, favorites: 0, messages: 0, calls: 0, visits: 0 }],
-                     market: { comparablePrice: 0, buildingUnitsCount: 0, neighborhoodUnitsCount: 0, avgSaleDurationDays: 0 }
+                     market: { comparablePrice: 0, buildingUnitsCount: 0, neighborhoodUnitsCount: 0, avgSaleDurationDays: 0 },
+                     agentName: '', agentPhone: ''
                    };
                    setProperties(prev => [...prev, newProp]);
                    setSelectedPropertyId(id);
@@ -359,7 +614,7 @@ const App: React.FC = () => {
              </div>
              <div className="relative">
                 <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20}/>
-                <input type="text" placeholder="Ara..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-14 pr-6 py-4 bg-white border border-slate-200 rounded-2xl outline-none" />
+                <input type="text" placeholder="Ara..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-14 pr-6 py-4 bg-white border border-slate-200 rounded-2xl outline-none text-[#001E3C]" />
              </div>
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredProperties.map(p => (
@@ -405,10 +660,29 @@ const App: React.FC = () => {
                       <AdminInput label="Konum / Mahalle" value={currentProperty.location} onChange={(v:any) => updatePropertyData('location', v)} />
                       <AdminInput label="Mevcut Fiyat (₺)" type="number" value={currentProperty.currentPrice} onChange={(v:any) => updatePropertyData('currentPrice', v)} />
                       <AdminInput label="Görsel URL" value={currentProperty.image} onChange={(v:any) => updatePropertyData('image', v)} />
+                      
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Sorumlu Danışman Seçin</label>
+                        <select 
+                          value={agents.find(a => a.name === currentProperty.agentName)?.id || ""} 
+                          onChange={(e) => {
+                            const selected = agents.find(a => a.id === e.target.value);
+                            if (selected) {
+                              updatePropertyData('agentName', selected.name);
+                              updatePropertyData('agentPhone', selected.phone);
+                            }
+                          }}
+                          className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none text-[#001E3C]"
+                        >
+                          <option value="">Seçiniz...</option>
+                          {agents.map(a => <option key={a.id} value={a.id} className="text-[#001E3C]">{a.name}</option>)}
+                        </select>
+                      </div>
+                      <AdminInput label="Danışman Telefon" value={currentProperty.agentPhone || ''} onChange={(v:any) => updatePropertyData('agentPhone', v)} />
                    </div>
                    <div className="space-y-1">
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Danışman Notu</label>
-                      <textarea value={currentProperty.agentNotes} onChange={(e) => updatePropertyData('agentNotes', e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none h-24 resize-none focus:border-[#001E3C]" placeholder="Danışman mesajı..."></textarea>
+                      <textarea value={currentProperty.agentNotes} onChange={(e) => updatePropertyData('agentNotes', e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none h-24 resize-none focus:border-[#001E3C] text-[#001E3C]" placeholder="Danışman mesajı..."></textarea>
                    </div>
                 </section>
 
@@ -419,7 +693,7 @@ const App: React.FC = () => {
                         <div key={idx} className="p-6 bg-slate-50 rounded-2xl border border-slate-200 space-y-4">
                            <div className="flex justify-between items-center border-b border-slate-200 pb-2 mb-2">
                               <select value={stat.month} onChange={(e) => handleUpdateStat(idx, 'month', e.target.value)} className="bg-transparent font-black text-[#001E3C] outline-none">
-                                 {MONTHS_LIST.map(m => <option key={m} value={m}>{m}</option>)}
+                                 {MONTHS_LIST.map(m => <option key={m} value={m} className="text-[#001E3C]">{m}</option>)}
                               </select>
                               <button onClick={() => updatePropertyData('stats', currentProperty.stats.filter((_, i) => i !== idx))} className="text-red-400 hover:text-red-600 transition-colors"><Trash2 size={16}/></button>
                            </div>
@@ -449,7 +723,7 @@ const App: React.FC = () => {
                       {(currentProperty.priceHistory || []).map((p, i) => (
                         <div key={i} className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-xl">
                           <span className="text-xs font-bold text-slate-400">{p.date}</span>
-                          <span className="text-sm font-black">₺{p.amount.toLocaleString()}</span>
+                          <span className="text-sm font-black text-[#001E3C]">₺{p.amount.toLocaleString()}</span>
                           <button onClick={() => updatePropertyData('priceHistory', currentProperty.priceHistory.filter((_, idx) => idx !== i))} className="p-2 text-red-400 hover:bg-red-50 rounded-lg"><Trash2 size={18}/></button>
                         </div>
                       ))}
@@ -468,7 +742,7 @@ const App: React.FC = () => {
                    <div className="space-y-2">
                       {(currentProperty.offers || []).map((off) => (
                         <div key={off.id} className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-xl shadow-sm">
-                          <div><p className="font-bold text-sm">{off.bidder}</p><p className="text-[10px] font-black text-slate-400">₺{off.amount.toLocaleString()} • {off.date}</p></div>
+                          <div><p className="font-bold text-sm text-[#001E3C]">{off.bidder}</p><p className="text-[10px] font-black text-slate-400">₺{off.amount.toLocaleString()} • {off.date}</p></div>
                           <button onClick={() => updatePropertyData('offers', (currentProperty.offers || []).filter(o => o.id !== off.id))} className="p-2 text-red-400 hover:bg-red-50 rounded-lg"><Trash2 size={18}/></button>
                         </div>
                       ))}
@@ -518,12 +792,12 @@ const App: React.FC = () => {
                     <div className="flex items-center justify-between">
                        <div className="flex items-center gap-3"><BarChart3 className="text-[#001E3C]" size={20}/><h3 className="font-black text-[#001E3C] uppercase tracking-wider text-xs">Piyasa Performansı</h3></div>
                        <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-200">
-                          <select value={actualStartIdx} onChange={(e) => setStartRangeIdx(parseInt(e.target.value))} className="bg-white px-2 py-1 rounded-lg text-[10px] font-bold outline-none">
-                            {(currentProperty.stats || []).map((s, idx) => (<option key={idx} value={idx}>{s.month}</option>))}
+                          <select value={actualStartIdx} onChange={(e) => setStartRangeIdx(parseInt(e.target.value))} className="bg-white px-2 py-1 rounded-lg text-[10px] font-bold outline-none text-[#001E3C]">
+                            {(currentProperty.stats || []).map((s, idx) => (<option key={idx} value={idx} className="text-[#001E3C]">{s.month}</option>))}
                           </select>
                           <span className="text-slate-300 font-black">-</span>
-                          <select value={actualEndIdx} onChange={(e) => setEndRangeIdx(parseInt(e.target.value))} className="bg-white px-2 py-1 rounded-lg text-[10px] font-bold outline-none">
-                            {(currentProperty.stats || []).map((s, idx) => (<option key={idx} value={idx}>{s.month}</option>))}
+                          <select value={actualEndIdx} onChange={(e) => setEndRangeIdx(parseInt(e.target.value))} className="bg-white px-2 py-1 rounded-lg text-[10px] font-bold outline-none text-[#001E3C]">
+                            {(currentProperty.stats || []).map((s, idx) => (<option key={idx} value={idx} className="text-[#001E3C]">{s.month}</option>))}
                           </select>
                        </div>
                     </div>
@@ -570,7 +844,7 @@ const App: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                    <MarketMetric label="Emsal Fiyat" value={`₺${(currentProperty.market?.comparablePrice || 0).toLocaleString()}`} icon={<Target size={20}/>} />
                    <MarketMetric label="Ort. Satış Süresi" value={`${currentProperty.market?.avgSaleDurationDays || 0} Gün`} icon={<Timer size={20}/>} />
-                   <MarketMetric label="Binadaki İlanlar" value={`${currentProperty.market?.buildingUnitsCount || 0} İlan`} icon={<Building2 size={20}/>} />
+                   <MarketMetric label="Binadaki Diğer İlanlar" value={`${currentProperty.market?.buildingUnitsCount || 0} İlan`} icon={<Building2 size={20}/>} />
                    <MarketMetric label="Mahalledeki Rekabet" value={`${currentProperty.market?.neighborhoodUnitsCount || 0} İlan`} icon={<Layers size={20}/>} />
                 </div>
              </div>
@@ -604,7 +878,7 @@ const App: React.FC = () => {
                              <div className="flex items-center gap-4">
                                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 shadow-sm"><User size={20}/></div>
                                <div>
-                                 <p className="font-bold text-sm">{offer.bidder.substring(0,2)}***</p>
+                                 <p className="font-bold text-sm text-[#001E3C]">{offer.bidder.substring(0,2)}***</p>
                                  <p className="text-[10px] text-slate-400 font-bold">{offer.date} • {offer.status}</p>
                                </div>
                              </div>
@@ -617,10 +891,30 @@ const App: React.FC = () => {
                    </div>
                 </div>
 
-                {/* Danışman Notu Kartı */}
-                <div className="bg-[#001E3C] p-10 rounded-[3rem] text-white flex flex-col justify-center shadow-xl relative overflow-hidden">
-                   <div className="flex items-center gap-3 mb-4"><MessageCircle size={32} className="text-blue-400"/><h4 className="text-2xl font-black">Danışman Notu</h4></div>
-                   <p className="text-xl font-medium italic text-white/90">"{currentProperty.agentNotes || 'Satış süreciniz profesyonel ekibimizce takip edilmektedir.'}"</p>
+                {/* Danışman Kartı */}
+                <div className="bg-[#001E3C] p-10 rounded-[3rem] text-white flex flex-col justify-between shadow-xl relative overflow-hidden">
+                   <div className="space-y-6">
+                      <div className="flex items-center gap-3 mb-4"><MessageCircle size={32} className="text-blue-400"/><h4 className="text-2xl font-black">Danışman Notu</h4></div>
+                      <p className="text-xl font-medium italic text-white/90">"{currentProperty.agentNotes || 'Satış süreciniz profesyonel ekibimizce takip edilmektedir.'}"</p>
+                   </div>
+                   
+                   <div className="mt-10 pt-6 border-t border-white/10 flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-4">
+                         <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center text-blue-400">
+                            <UserCheck size={32}/>
+                         </div>
+                         <div>
+                            <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Sorumlu Danışman</p>
+                            <p className="text-lg font-black">{currentProperty.agentName || 'Türkwest Portföy Ekibi'}</p>
+                         </div>
+                      </div>
+                      {currentProperty.agentPhone && (
+                        <a href={`tel:${currentProperty.agentPhone}`} className="w-12 h-12 bg-white text-[#001E3C] rounded-2xl flex items-center justify-center hover:scale-110 transition-transform">
+                           <Phone size={24}/>
+                        </a>
+                      )}
+                   </div>
+                   
                    <div className="absolute top-0 right-0 p-8 opacity-10"><Award size={120}/></div>
                 </div>
              </div>
