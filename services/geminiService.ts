@@ -3,15 +3,8 @@ import { GoogleGenAI } from "@google/genai";
 import { ClientReport } from "../types.ts";
 
 export const generateReportSummary = async (report: ClientReport): Promise<string> => {
-  // Safe environment variable access
-  const apiKey = (typeof process !== 'undefined' && process.env) ? process.env.API_KEY : '';
-  
-  if (!apiKey) {
-    console.error("API Key is missing. Check your environment settings.");
-    return "Yapay zeka analiz servisi şu an yapılandırılamadı. Lütfen teknik ekiple iletişime geçiniz.";
-  }
-
-  const ai = new GoogleGenAI({ apiKey });
+  // Always initialize right before use to ensure the latest API state
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const statsJson = JSON.stringify(report.property.stats);
   const marketJson = JSON.stringify(report.property.market);
@@ -25,17 +18,22 @@ export const generateReportSummary = async (report: ClientReport): Promise<strin
     Konum: ${report.property.location}
     Güncel Fiyat: ₺${report.property.currentPrice.toLocaleString()}
     
-    Fiyat Geçmişi: ${priceHistoryJson}
-    Aylık Performans: ${statsJson}
-    Piyasa Koşulları: ${marketJson}
+    Fiyat Geçmişi (Zaman içindeki değişimler):
+    ${priceHistoryJson}
+    
+    Aylık Performans Verileri (Görüntülenme, Favori, Mesaj, Arama, Gezme):
+    ${statsJson}
+    
+    Piyasa Koşulları (Emsal fiyat, binadaki rakip ilanlar, mahalledeki rakip ilanlar, ortalama satış süresi):
+    ${marketJson}
     
     Lütfen bu verileri analiz ederek profesyonel bir stratejik özet hazırla:
-    1. İlanın genel ilgisini yorumla.
-    2. Piyasadaki rekabet durumunu değerlendir.
-    3. Fiyat konumlandırmasını analiz et.
-    4. Satışı hızlandıracak somut tavsiyeler ver.
+    1. İlanın genel ilgisini yorumla. Özellikle fiyat değişimlerinin (varsa) görüntülenme ve favori sayıları üzerindeki etkisini belirt.
+    2. Piyasadaki rekabet durumunu (binadaki ve mahalledeki rakip yoğunluğu) değerlendir.
+    3. Emsal fiyata ve fiyat geçmişine göre mülkün mevcut fiyat konumlandırmasını analiz et.
+    4. Satış sürecini hızlandırmak için veriye dayalı somut stratejik tavsiyeler ver.
     
-    Dili profesyonel, sonuç odaklı ve Türkwest kurumsal kimliğine uygun olsun. Yanıt doğrudan Markdown formatında olsun.
+    Dili profesyonel, sonuç odaklı ve Türkwest kurumsal kimliğine uygun olsun. Yanıt doğrudan rapor metni (Markdown formatında) olsun. Başlık kullanma, direkt analize gir.
   `;
 
   try {
@@ -43,7 +41,7 @@ export const generateReportSummary = async (report: ClientReport): Promise<strin
       model: 'gemini-3-flash-preview',
       contents: prompt,
     });
-    return response.text || "Veri analizi şu an için yapılamadı.";
+    return response.text || "Veri analizi şu an için yapılamadı. Lütfen daha sonra tekrar deneyiniz.";
   } catch (error) {
     console.error("Gemini AI Error:", error);
     return "Analiz servisi şu an meşgul. Lütfen manuel verileri inceleyiniz.";
