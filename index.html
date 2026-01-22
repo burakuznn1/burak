@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -17,6 +16,10 @@
     <script>
       // Browser environment polyfill to prevent "process is not defined" crashes
       window.process = { env: { API_KEY: "" } };
+      // Global error handling to catch issues before render
+      window.onerror = function(msg, url, line, col, error) {
+        console.error("Global Error: ", msg, error);
+      };
     </script>
     <style>
         html, body {

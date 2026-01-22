@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   LayoutDashboard, LogOut, Sparkles, MapPin, MessageSquare, Eye, Heart, 
@@ -384,7 +383,7 @@ const App: React.FC = () => {
         <div className="p-8 border-b border-white/5">
           <div className="flex items-center gap-3">
             <Award className="text-white" size={32} />
-            <h1 className="font-black text-xl tracking-tighter">TÜRKWEST</h1>
+            <h1 className="font-black text-xl tracking-tighter uppercase">TÜRKWEST</h1>
           </div>
         </div>
         <nav className="p-6 space-y-2 flex-1 overflow-y-auto custom-scrollbar">
@@ -435,12 +434,12 @@ const App: React.FC = () => {
       {/* Main Content Area */}
       <main className={`flex-1 lg:ml-72 p-4 lg:p-10 pb-32 pt-24 lg:pt-10 transition-all`}>
         {!selectedPropertyId && !isAdminAuthenticated && (
-          <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4">
+          <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4 animate-in zoom-in">
              <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mb-6 shadow-inner">
                <Award className="text-[#001E3C]" size={48} />
              </div>
              <h1 className="text-3xl lg:text-5xl font-black text-[#001E3C] mb-4">Gayrimenkul Varlık Raporu</h1>
-             <p className="text-slate-500 mb-10 max-w-sm font-medium">Lütfen size verilen mülk kodunu girerek detaylı performans analizini ve piyasa verilerini görüntüleyin.</p>
+             <p className="text-slate-500 mb-10 max-w-sm font-medium">Mülk kodunu girerek detaylı performans analizini görüntüleyin.</p>
              <form onSubmit={(e) => { 
                e.preventDefault(); 
                const cleanCode = clientCodeInput.trim();
@@ -460,29 +459,25 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* --- YÖNETİCİ PANELLERİ --- */}
         {isAdminAuthenticated && (
-          <div className="animate-in fade-in duration-500">
-            {/* Portföy Merkezi */}
+          <div className="animate-in fade-in duration-500 max-w-6xl mx-auto space-y-10">
             {activeTab === 'propertyList' && (
-              <div className="max-w-6xl mx-auto space-y-8">
+              <div className="space-y-8">
                  <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
                     <h2 className="text-3xl font-black text-[#001E3C]">Portföy Yönetimi</h2>
                     <button onClick={() => {
                        const id = `west-${Math.floor(100+Math.random()*900)}`;
-                       const currentMonthName = new Date().toLocaleDateString('tr-TR', { month: 'long' });
-                       const capitalizedMonth = currentMonthName.charAt(0).toUpperCase() + currentMonthName.slice(1);
                        const newProp: Property = { 
                          id, title: 'Yeni İlan', location: '', image: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=1000&q=80',
                          currentPrice: 0, priceHistory: [], agentNotes: '', clientFeedback: [], offers: [], 
-                         stats: [{ month: capitalizedMonth, views: 0, favorites: 0, messages: 0, calls: 0, visits: 0 }],
+                         stats: [{ month: MONTHS_LIST[new Date().getMonth()], views: 0, favorites: 0, messages: 0, calls: 0, visits: 0 }],
                          market: { comparablePrice: 0, buildingUnitsCount: 0, neighborhoodUnitsCount: 0, avgSaleDurationDays: 0 },
                          agentName: '', agentPhone: '', listingDate: new Date().toISOString().split('T')[0], viewCountByClient: 0
                        };
                        setProperties(prev => [...prev, newProp]);
                        setSelectedPropertyId(id);
                        setActiveTab('edit');
-                    }} className="w-full sm:w-auto px-6 py-3 bg-[#001E3C] text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-transform"><Plus size={20}/> Yeni İlan</button>
+                    }} className="w-full sm:w-auto px-6 py-3 bg-[#001E3C] text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-95"><Plus size={20}/> Yeni İlan</button>
                  </div>
                  <div className="relative">
                     <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20}/>
@@ -509,5 +504,356 @@ const App: React.FC = () => {
               </div>
             )}
 
-            {/* Genel İstatistikler */}
             {activeTab === 'portfolioStats' && (
+              <div className="space-y-8">
+                <h2 className="text-3xl font-black text-[#001E3C]">Portföy İstatistikleri</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                   <DashboardStat label="Toplam Mülk" value={properties.length} icon={<Home size={20}/>} color="indigo" />
+                   <DashboardStat label="Aktif Teklifler" value={properties.reduce((acc, p) => acc + (p.offers?.filter(o => o.status === 'Beklemede').length || 0), 0)} icon={<Wallet size={20}/>} color="emerald" />
+                   <DashboardStat label="Müşteri Girişi" value={properties.reduce((acc, p) => acc + (p.viewCountByClient || 0), 0)} icon={<Activity size={20}/>} color="blue" />
+                </div>
+                <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden overflow-x-auto">
+                   <table className="w-full text-left">
+                      <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                         <tr>
+                            <th className="px-8 py-4">Mülk</th>
+                            <th className="px-8 py-4">Fiyat</th>
+                            <th className="px-8 py-4 text-center">Giriş</th>
+                            <th className="px-8 py-4 text-center">Teklif</th>
+                         </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                         {properties.map(p => (
+                            <tr key={p.id} className="hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => { setSelectedPropertyId(p.id); setActiveTab('dashboard'); }}>
+                               <td className="px-8 py-6">
+                                  <div className="flex items-center gap-3">
+                                     <img src={p.image} className="w-10 h-10 rounded-lg object-cover" />
+                                     <div><p className="font-bold text-sm text-[#001E3C]">{p.title}</p><p className="text-[10px] font-bold text-slate-400">{p.id}</p></div>
+                                  </div>
+                               </td>
+                               <td className="px-8 py-6 font-black text-sm text-[#001E3C]">₺{p.currentPrice.toLocaleString()}</td>
+                               <td className="px-8 py-6 text-center font-black text-blue-500">{p.viewCountByClient || 0}</td>
+                               <td className="px-8 py-6 text-center font-black text-emerald-500">{p.offers?.length || 0}</td>
+                            </tr>
+                         ))}
+                      </tbody>
+                   </table>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'customers' && (
+              <div className="space-y-8">
+                <h2 className="text-3xl font-black text-[#001E3C]">Müşteri CRM</h2>
+                <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
+                  <h3 className="text-lg font-black text-[#001E3C] flex items-center gap-2"><Plus size={20}/> Yeni Kayıt</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <AdminInput label="Ad Soyad" value={newCustomer.name} onChange={(v:any) => setNewCustomer({...newCustomer, name: v})} />
+                    <AdminInput label="Telefon" value={newCustomer.phone} onChange={(v:any) => setNewCustomer({...newCustomer, phone: v})} />
+                    <AdminInput label="Bütçe (₺)" type="number" value={newCustomer.budget} onChange={(v:any) => setNewCustomer({...newCustomer, budget: v})} />
+                    <div className="space-y-1 col-span-full">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Notlar</label>
+                      <textarea value={newCustomer.notes} onChange={e => setNewCustomer({...newCustomer, notes: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none h-24 resize-none text-[#001E3C]" />
+                    </div>
+                  </div>
+                  <button onClick={handleAddCustomer} className="w-full py-4 bg-[#001E3C] text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-95"><Plus size={20}/> Müşteriyi Kaydet</button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {customers.map(c => (
+                    <div key={c.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-4">
+                      <div className="flex justify-between items-start">
+                         <div>
+                            <h4 className="font-black text-lg text-[#001E3C]">{c.name}</h4>
+                            <p className="text-xs text-slate-400 font-bold">{c.phone}</p>
+                         </div>
+                         <button onClick={() => setCustomers(prev => prev.filter(x => x.id !== c.id))} className="p-2 text-red-400 hover:bg-red-50 rounded-xl transition-colors"><Trash2 size={18}/></button>
+                      </div>
+                      <p className="text-sm font-bold text-emerald-600">Bütçe: ₺{Number(c.budget).toLocaleString()}</p>
+                      <div className="bg-slate-50 p-3 rounded-xl"><p className="text-xs text-slate-500 italic">{c.notes || 'Not yok.'}</p></div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'edit' && currentProperty && (
+              <div className="space-y-8 animate-in slide-in-from-right-10 pb-40">
+                 <div className="flex justify-between items-center">
+                    <button onClick={() => setActiveTab('propertyList')} className="flex items-center gap-2 text-slate-500 font-bold"><ArrowLeft size={20}/> Geri</button>
+                    <div className="flex items-center gap-4">
+                      <button onClick={() => handleDeleteProperty(currentProperty.id)} className="px-4 py-2 bg-red-50 text-red-500 rounded-xl text-sm font-bold shadow-sm hover:bg-red-600 hover:text-white transition-all"><Trash2 size={18}/> Sil</button>
+                      <h2 className="text-2xl font-black text-[#001E3C]">Düzenle: {currentProperty.id}</h2>
+                    </div>
+                 </div>
+                 
+                 <div className="bg-white rounded-[2.5rem] p-6 lg:p-10 shadow-2xl border border-slate-100 space-y-12">
+                    <section className="space-y-6">
+                       <h3 className="text-lg font-black text-[#001E3C] border-b pb-2 flex items-center gap-2"><Info size={20}/> Temel Bilgiler</h3>
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <AdminInput label="İlan Başlığı" value={currentProperty.title} onChange={(v:any) => updatePropertyData('title', v)} />
+                          <AdminInput label="Konum" value={currentProperty.location} onChange={(v:any) => updatePropertyData('location', v)} />
+                          <AdminInput label="Mevcut Fiyat (₺)" type="number" value={currentProperty.currentPrice} onChange={(v:any) => updatePropertyData('currentPrice', v)} />
+                          <div className="space-y-1">
+                             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">İlan Tarihi</label>
+                             <input type="date" value={currentProperty.listingDate} onChange={e => updatePropertyData('listingDate', e.target.value)} className="w-full p-4 bg-slate-50 border rounded-2xl text-sm font-bold outline-none text-[#001E3C]" />
+                          </div>
+                          <div className="space-y-1 md:col-span-2">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Görsel URL</label>
+                            <input type="text" value={currentProperty.image} onChange={(e) => updatePropertyData('image', e.target.value)} className="w-full p-4 bg-slate-50 border rounded-2xl text-sm font-bold outline-none text-[#001E3C]" />
+                          </div>
+                       </div>
+                    </section>
+
+                    <section className="space-y-6">
+                       <h3 className="text-lg font-black text-[#001E3C] border-b pb-2 flex items-center gap-2"><History size={20}/> Fiyat Geçmişi</h3>
+                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end bg-slate-50 p-6 rounded-2xl">
+                          <AdminInput label="Yeni Fiyat Noktası" type="number" value={newPriceUpdate.amount} onChange={(v:any) => setNewPriceUpdate({...newPriceUpdate, amount: v})} />
+                          <div className="space-y-1">
+                             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Tarih</label>
+                             <input type="date" value={newPriceUpdate.date} onChange={e => setNewPriceUpdate({...newPriceUpdate, date: e.target.value})} className="w-full p-4 bg-white border rounded-2xl text-sm font-bold text-[#001E3C]" />
+                          </div>
+                          <button onClick={handleAddPriceUpdate} className="py-4 bg-[#001E3C] text-white rounded-2xl font-black text-xs uppercase shadow-md">Kaydet</button>
+                       </div>
+                       <div className="space-y-2">
+                          {currentProperty.priceHistory?.map((ph, i) => (
+                            <div key={i} className="flex justify-between items-center p-3 border rounded-xl text-sm font-bold text-[#001E3C]">
+                               <span>{ph.date}</span>
+                               <span className="text-emerald-600">₺{ph.amount.toLocaleString()}</span>
+                               <button onClick={() => updatePropertyData('priceHistory', currentProperty.priceHistory.filter((_, idx) => idx !== i))} className="text-red-400"><Trash2 size={14}/></button>
+                            </div>
+                          ))}
+                       </div>
+                    </section>
+
+                    <section className="space-y-6">
+                       <h3 className="text-lg font-black text-[#001E3C] border-b pb-2 flex items-center gap-2"><Wallet size={20}/> Teklif Yönetimi</h3>
+                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end bg-slate-50 p-6 rounded-2xl">
+                          <AdminInput label="Teklif Sahibi" value={newOffer.bidder} onChange={(v:any) => setNewOffer({...newOffer, bidder: v})} />
+                          <AdminInput label="Teklif Tutarı (₺)" type="number" value={newOffer.amount} onChange={(v:any) => setNewOffer({...newOffer, amount: v})} />
+                          <button onClick={handleAddOffer} className="py-4 bg-[#001E3C] text-white rounded-2xl font-black text-xs uppercase shadow-md">Ekle</button>
+                       </div>
+                       <div className="space-y-2">
+                          {currentProperty.offers?.map((off, i) => (
+                            <div key={off.id} className="flex flex-col sm:flex-row justify-between items-center p-4 border rounded-2xl gap-4">
+                               <div><p className="font-black text-[#001E3C]">{off.bidder}</p><p className="text-xs font-bold text-emerald-600">₺{off.amount.toLocaleString()}</p></div>
+                               <div className="flex gap-2">
+                                  <select value={off.status} onChange={(e) => {
+                                    const newOffers = [...(currentProperty.offers || [])];
+                                    newOffers[i].status = e.target.value as any;
+                                    updatePropertyData('offers', newOffers);
+                                  }} className="p-2 border rounded-xl text-xs font-bold outline-none"><option value="Beklemede">Beklemede</option><option value="Kabul Edildi">Kabul Edildi</option><option value="Reddedildi">Reddedildi</option></select>
+                                  <button onClick={() => updatePropertyData('offers', currentProperty.offers.filter(x => x.id !== off.id))} className="p-2 text-red-400"><Trash2 size={16}/></button>
+                               </div>
+                            </div>
+                          ))}
+                       </div>
+                    </section>
+
+                    <section className="space-y-6">
+                       <h3 className="text-lg font-black text-[#001E3C] border-b pb-2 flex items-center gap-2"><BarChart3 size={20}/> Aylık Performans Verileri</h3>
+                       <div className="space-y-6">
+                          {currentProperty.stats?.map((stat, idx) => (
+                            <div key={idx} className="p-6 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
+                               <div className="flex justify-between items-center border-b pb-2">
+                                  <select value={stat.month} onChange={(e) => handleUpdateStat(idx, 'month', e.target.value)} className="bg-transparent font-black text-[#001E3C] outline-none">{MONTHS_LIST.map(m => <option key={m} value={m}>{m}</option>)}</select>
+                                  <button onClick={() => updatePropertyData('stats', currentProperty.stats.filter((_, i) => i !== idx))} className="text-red-400"><Trash2 size={16}/></button>
+                               </div>
+                               <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+                                  <AdminInput label="Görünt." type="number" value={stat.views} onChange={(v:any) => handleUpdateStat(idx, 'views', v)} />
+                                  <AdminInput label="Favori" type="number" value={stat.favorites} onChange={(v:any) => handleUpdateStat(idx, 'favorites', v)} />
+                                  <AdminInput label="Mesaj" type="number" value={stat.messages} onChange={(v:any) => handleUpdateStat(idx, 'messages', v)} />
+                                  <AdminInput label="Arama" type="number" value={stat.calls} onChange={(v:any) => handleUpdateStat(idx, 'calls', v)} />
+                                  <AdminInput label="Ziyaret" type="number" value={stat.visits} onChange={(v:any) => handleUpdateStat(idx, 'visits', v)} />
+                               </div>
+                            </div>
+                          ))}
+                          <button onClick={handleAddMonth} className="w-full py-4 border-2 border-dashed border-slate-200 rounded-2xl font-bold text-slate-400 hover:bg-slate-50 transition-all flex items-center justify-center gap-2"><Plus size={20}/> Yeni Ay Ekle</button>
+                       </div>
+                    </section>
+
+                    <button onClick={() => setActiveTab('dashboard')} className="w-full py-6 bg-[#001E3C] text-white rounded-[2rem] font-black text-lg shadow-2xl transition-transform active:scale-95">Değişiklikleri Yayınla</button>
+                 </div>
+              </div>
+            )}
+            
+            {activeTab === 'dashboard' && currentProperty && (
+              <div className="space-y-10 animate-in fade-in duration-700 pb-20">
+                <div className="flex flex-col lg:flex-row justify-between items-start gap-6">
+                    <div className="space-y-2">
+                       <div className="flex items-center gap-2 mb-2">
+                         <span className="px-3 py-1 bg-[#001E3C] text-white text-[10px] font-black rounded-full uppercase tracking-widest">Performans Raporu</span>
+                         <span className="px-3 py-1 bg-white border border-slate-200 text-[#001E3C] text-[10px] font-black rounded-full shadow-sm">{calculateDaysOnMarket(currentProperty.listingDate)} GÜNDÜR YAYINDA</span>
+                       </div>
+                       <h2 className="text-3xl lg:text-4xl font-black text-[#001E3C] tracking-tight">{currentProperty.title}</h2>
+                       <p className="flex items-center gap-2 text-slate-500 font-medium text-sm"><MapPin size={16}/> {currentProperty.location}</p>
+                    </div>
+                    <div className="flex gap-3 w-full lg:w-auto">
+                       <button onClick={handleGenerateAISummary} disabled={isGenerating} className="flex-1 lg:flex-none px-8 py-4 bg-[#001E3C] text-white rounded-2xl font-black shadow-xl flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50">
+                         {isGenerating ? <Loader2 size={20} className="animate-spin"/> : <Sparkles size={20} className="text-amber-300"/>} Yapay Zeka Analizi
+                       </button>
+                    </div>
+                 </div>
+
+                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-6">
+                        <div className="flex items-center gap-3"><BarChart3 className="text-[#001E3C]" size={20}/><h3 className="font-black text-[#001E3C] uppercase text-[10px] tracking-widest">İlgi Analizi</h3></div>
+                        <div className="h-[250px] w-full">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={performanceChartData}>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                              <XAxis dataKey="name" tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }} />
+                              <YAxis tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }} />
+                              <Tooltip contentStyle={{ backgroundColor: '#001E3C', borderRadius: '16px', border: 'none', color: '#fff' }} />
+                              <Area type="monotone" dataKey="Görüntüleme" stroke="#001E3C" strokeWidth={3} fillOpacity={0.1} fill="#001E3C" />
+                              <Area type="monotone" dataKey="Favori" stroke="#f43f5e" strokeWidth={2} fill="transparent" />
+                            </AreaChart>
+                          </ResponsiveContainer>
+                        </div>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-6">
+                        <div className="flex items-center gap-3"><TrendingUp className="text-emerald-500" size={20}/><h3 className="font-black text-[#001E3C] uppercase text-[10px] tracking-widest">Fiyat Trendi</h3></div>
+                        <div className="h-[250px] w-full">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={priceChartData}>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                              <XAxis dataKey="date" tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }} />
+                              <YAxis tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }} />
+                              <Tooltip formatter={(val: number) => `₺${val.toLocaleString()}`} contentStyle={{ backgroundColor: '#001E3C', borderRadius: '16px', border: 'none', color: '#fff' }} />
+                              <Line type="stepAfter" dataKey="Fiyat" stroke="#10b981" strokeWidth={4} dot={{ r: 6, fill: '#10b981', stroke: '#fff' }} />
+                            </LineChart>
+                          </ResponsiveContainer>
+                        </div>
+                    </div>
+                 </div>
+
+                 {aiSummary && (
+                   <div className="bg-white p-8 lg:p-12 rounded-[3rem] shadow-2xl border border-blue-50 animate-in slide-in-from-bottom-5">
+                     <h4 className="text-xl font-black text-[#001E3C] mb-6 flex items-center gap-3"><Sparkles size={24} className="text-amber-500"/> Strateji Özeti</h4>
+                     <p className="whitespace-pre-line text-slate-600 leading-relaxed font-medium">{aiSummary}</p>
+                   </div>
+                 )}
+
+                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <DashboardStat label="Görüntüleme" value={latestStats.views} prevValue={previousStats?.views} icon={<Eye size={20}/>} color="blue" />
+                    <DashboardStat label="Favori" value={latestStats.favorites} prevValue={previousStats?.favorites} icon={<Heart size={20}/>} color="red" />
+                    <DashboardStat label="İletişim" value={latestStats.messages + latestStats.calls} prevValue={previousStats ? (previousStats.messages + previousStats.calls) : undefined} icon={<MessageSquare size={20}/>} color="indigo" />
+                    <DashboardStat label="Ziyaret" value={latestStats.visits} prevValue={previousStats?.visits} icon={<Navigation size={20}/>} color="emerald" />
+                 </div>
+
+                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm space-y-6">
+                       <h4 className="text-xl font-black text-[#001E3C] flex items-center justify-between">Teklif Geçmişi</h4>
+                       <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                          {currentProperty.offers?.length ? currentProperty.offers.map(off => (
+                            <div key={off.id} className="flex items-center justify-between p-5 bg-slate-50/50 rounded-2xl border border-slate-100">
+                               <div><p className="font-bold text-[#001E3C]">{off.bidder}</p><p className="text-[10px] text-slate-400 font-bold uppercase">{off.date} • {off.status}</p></div>
+                               <p className="font-black text-[#001E3C]">₺{off.amount.toLocaleString()}</p>
+                            </div>
+                          )) : <p className="text-center py-10 text-slate-300 italic">Henüz teklif yok.</p>}
+                       </div>
+                    </div>
+                    <div className="bg-[#001E3C] p-10 rounded-[3rem] text-white flex flex-col justify-between shadow-xl">
+                       <div className="space-y-6">
+                          <div className="flex items-center gap-3 mb-4"><MessageCircle size={32} className="text-blue-400"/><h4 className="text-2xl font-black">Danışman Notu</h4></div>
+                          <p className="text-lg italic text-white/90">"{currentProperty.agentNotes || 'Satış süreciniz profesyonel ekiplerimizce her an takip edilmektedir.'}"</p>
+                       </div>
+                       <div className="mt-10 flex items-center gap-4 pt-6 border-t border-white/10">
+                          <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center text-blue-400"><UserCheck size={32}/></div>
+                          <div><p className="text-[10px] font-black text-white/40 uppercase">Danışman</p><p className="text-lg font-black">{currentProperty.agentName || 'Türkwest Ekibi'}</p></div>
+                       </div>
+                    </div>
+                 </div>
+              </div>
+            )}
+          </div>
+        )}
+      </main>
+
+      {/* MOBİL BOTTOM NAV */}
+      {isAdminAuthenticated && !isClientMode && (
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-[#001E3C]/95 backdrop-blur-xl text-white/40 border-t border-white/5 px-4 pb-8 pt-3 flex justify-around items-center z-[60] shadow-2xl">
+          <MobileNavItem icon={<Home size={20}/>} label="İlanlar" active={activeTab === 'propertyList'} onClick={() => setActiveTab('propertyList')} />
+          <MobileNavItem icon={<PieChart size={20}/>} label="Veri" active={activeTab === 'portfolioStats'} onClick={() => setActiveTab('portfolioStats')} />
+          <MobileNavItem icon={<Users size={20}/>} label="Müşteri" active={activeTab === 'customers'} onClick={() => setActiveTab('customers')} />
+          <MobileNavItem icon={<Bell size={20}/>} label="Talep" active={activeTab === 'notifications'} onClick={() => setActiveTab('notifications')} badge={totalNotifications} />
+        </div>
+      )}
+
+      {/* RAPOR MODUNDA GERİ DÖNÜŞ */}
+      {isClientMode && (
+        <div className="lg:hidden fixed bottom-8 left-1/2 -translate-x-1/2 z-[70] animate-in slide-in-from-bottom-5">
+           <button onClick={() => { setIsClientMode(false); setSelectedPropertyId(null); setActiveTab('propertyList'); }} className="px-8 py-4 bg-white text-[#001E3C] rounded-full font-black shadow-2xl border border-slate-100 flex items-center gap-2 active:scale-90 transition-transform"><ArrowLeft size={18}/> Kapat</button>
+        </div>
+      )}
+
+      {/* YÖNETİCİ GİRİŞİ MODAL */}
+      {showLoginModal && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-[#001E3C]/90 backdrop-blur-xl p-4 transition-all">
+          <div className="bg-white w-full max-w-sm rounded-[3rem] p-10 text-center shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-slate-50 text-[#001E3C] rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-inner"><Lock size={32}/></div>
+            <h3 className="text-xl font-black mb-8 text-[#001E3C]">Yönetici Girişi</h3>
+            <form onSubmit={handleLogin} className="space-y-5">
+              <input type="password" autoFocus placeholder="PIN / Şifre" value={passwordInput} onChange={e => setPasswordInput(e.target.value)} className="w-full p-5 bg-slate-50 border-2 rounded-2xl outline-none text-center text-xl font-black tracking-[0.5em] text-[#001E3C] focus:border-[#001E3C] focus:bg-white transition-all shadow-sm" />
+              <button type="submit" className="w-full py-5 bg-[#001E3C] text-white rounded-2xl font-black shadow-xl hover:shadow-2xl transition-all active:scale-95">Sistemi Aç</button>
+              <button type="button" onClick={() => setShowLoginModal(false)} className="text-[10px] font-black text-slate-400 mt-6 uppercase tracking-widest hover:text-red-400">Geri Dön</button>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* YARDIMCI BİLEŞENLER */
+const NavItem = ({ icon, label, active, onClick, badge }: any) => (
+  <button onClick={onClick} className={`w-full flex items-center justify-between px-6 py-4 rounded-2xl transition-all duration-300 ${active ? 'bg-white/10 text-white font-black shadow-lg scale-105' : 'text-white/30 hover:text-white hover:bg-white/5'}`}>
+    <div className="flex items-center gap-4"><span>{icon}</span><span className="text-[13px]">{label}</span></div>
+    {(badge || 0) > 0 && <span className="w-5 h-5 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center animate-bounce shadow-lg">{badge}</span>}
+  </button>
+);
+
+const MobileNavItem = ({ icon, label, active, onClick, badge }: any) => (
+  <button onClick={onClick} className={`flex flex-col items-center gap-1 transition-all duration-300 ${active ? 'text-white scale-110' : 'text-white/30'}`}>
+    <div className="relative">{icon}{(badge || 0) > 0 && <span className="absolute -top-2 -right-2 w-4 h-4 bg-red-500 text-white text-[8px] font-black rounded-full flex items-center justify-center shadow-lg">{badge}</span>}</div>
+    <span className="text-[9px] font-bold uppercase tracking-tighter">{label}</span>
+  </button>
+);
+
+const DashboardStat = ({ label, value, prevValue, icon, color }: any) => {
+  const styles: any = { blue: 'bg-blue-50 text-blue-600', red: 'bg-red-50 text-red-600', indigo: 'bg-indigo-50 text-indigo-600', emerald: 'bg-emerald-50 text-emerald-600' };
+  const valNum = Number(value || 0);
+  const prevValNum = Number(prevValue || 0);
+  const diff = prevValue !== undefined ? valNum - prevValNum : null;
+  return (
+    <div className="bg-white p-4 lg:p-6 rounded-2xl lg:rounded-[2rem] border border-slate-100 shadow-sm space-y-3 lg:space-y-4 hover:shadow-md transition-shadow">
+       <div className={`w-10 h-10 lg:w-12 lg:h-12 rounded-xl lg:rounded-2xl flex items-center justify-center ${styles[color]}`}>{icon}</div>
+       <div>
+          <p className="text-[9px] lg:text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</p>
+          <div className="flex items-baseline gap-1 lg:gap-2 mt-1">
+            <h4 className="text-lg lg:text-2xl font-black text-[#001E3C]">{valNum.toLocaleString()}</h4>
+            {diff !== null && diff !== 0 && (
+              <span className={`text-[8px] lg:text-[10px] font-black flex items-center gap-0.5 ${diff > 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                {diff > 0 ? <ArrowUpRight size={10}/> : ''}{diff}
+              </span>
+            )}
+          </div>
+       </div>
+    </div>
+  );
+};
+
+const AdminInput = ({ label, value, onChange, type = "text" }: any) => (
+  <div className="space-y-1">
+    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{label}</label>
+    <input type={type === 'number' ? 'text' : type} value={value ?? ''} onChange={(e) => {
+      const v = e.target.value;
+      if(type === 'number') {
+        const n = v === '' ? 0 : Number(v.replace(/[^0-9]/g, ''));
+        onChange(isNaN(n) ? 0 : n);
+      } else { onChange(v); }
+    }} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:border-[#001E3C] focus:bg-white text-[#001E3C] transition-all" />
+  </div>
+);
+
+export default App;
