@@ -1,12 +1,12 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   LayoutDashboard, LogOut, Sparkles, MapPin, MessageSquare, Eye, Heart, 
   Navigation, Info, Edit3, Send, Lock, CheckCircle2, Plus, Trash2, Search, 
   Home, Award, Building2, Layers, MessageCircle, RefreshCw, Settings, 
   Loader2, User, Wallet, Timer, Target, ArrowLeft, History, DollarSign,
   Bell, Inbox, Calendar, BarChart3, TrendingUp, Phone, UserCheck, Share2,
-  CheckCircle, Clock, List, Users, Briefcase, FileText
+  CheckCircle, Clock, List, Users, Briefcase, FileText, Upload, PieChart, Activity
 } from 'lucide-react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, 
@@ -38,6 +38,8 @@ const INITIAL_PROPERTIES: Property[] = [
     currentPrice: 18500000,
     agentName: 'Can West',
     agentPhone: '5551234567',
+    listingDate: '2024-01-15',
+    viewCountByClient: 12,
     priceHistory: [
       { date: '15.01.2024', amount: 19500000 },
       { date: '20.03.2024', amount: 19000000 },
@@ -66,7 +68,7 @@ const App: React.FC = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(() => localStorage.getItem('west_admin_auth') === 'true');
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'propertyList' | 'agents' | 'calendar' | 'customers' | 'edit' | 'notifications'>('propertyList');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'propertyList' | 'agents' | 'calendar' | 'customers' | 'portfolioStats' | 'edit' | 'notifications'>('propertyList');
   const [passwordInput, setPasswordInput] = useState("");
   const [clientCodeInput, setClientCodeInput] = useState("");
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -90,6 +92,8 @@ const App: React.FC = () => {
   const [clientNoteInput, setClientNoteInput] = useState("");
   const [clientRequestedPriceInput, setClientRequestedPriceInput] = useState("");
   const [showFeedbackSuccess, setShowFeedbackSuccess] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const supabase = useMemo(() => {
     if (SUPABASE_URL && SUPABASE_KEY) {
@@ -317,6 +321,17 @@ const App: React.FC = () => {
     setNewCustomer({ name: '', phone: '', preferredSize: '2+1', preferredNeighborhood: 'Alipaşa', budget: 0, category: 'Satılık', lastContactDate: '', notes: '' });
   };
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        updatePropertyData('image', reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleDeleteProperty = (id: string) => {
     if (window.confirm('Bu mülkü tamamen silmek istediğinize emin misiniz?')) {
       setProperties(prev => prev.filter(p => p.id !== id));
@@ -349,6 +364,14 @@ const App: React.FC = () => {
     setIsGenerating(false);
   };
 
+  const calculateDaysOnMarket = (listingDate?: string) => {
+    if (!listingDate) return 0;
+    const start = new Date(listingDate);
+    const today = new Date();
+    const diff = today.getTime() - start.getTime();
+    return Math.max(0, Math.floor(diff / (1000 * 3600 * 24)));
+  };
+
   if (isLoadingCloud) return <div className="min-h-screen bg-[#001E3C] flex items-center justify-center text-white"><Loader2 className="animate-spin" size={40}/></div>;
 
   return (
@@ -365,6 +388,7 @@ const App: React.FC = () => {
           {isAdminAuthenticated && !isClientMode ? (
             <>
               <NavItem icon={<Home size={20}/>} label="Portföy Merkezi" active={activeTab === 'propertyList'} onClick={() => setActiveTab('propertyList')} />
+              <NavItem icon={<PieChart size={20}/>} label="Genel İstatistikler" active={activeTab === 'portfolioStats'} onClick={() => setActiveTab('portfolioStats')} />
               <NavItem icon={<Users size={20}/>} label="Müşteri Yönetimi" active={activeTab === 'customers'} onClick={() => setActiveTab('customers')} />
               <NavItem icon={<UserCheck size={20}/>} label="Danışman Yönetimi" active={activeTab === 'agents'} onClick={() => setActiveTab('agents')} />
               <NavItem icon={<Calendar size={20}/>} label="Pazarlama Takvimi" active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} />
@@ -401,12 +425,74 @@ const App: React.FC = () => {
                e.preventDefault(); 
                const cleanCode = clientCodeInput.trim();
                const p = properties.find(x => x.id.toLowerCase() === cleanCode.toLowerCase()); 
-               if(p) { setSelectedPropertyId(p.id); setIsClientMode(true); setActiveTab('dashboard'); } 
+               if(p) { 
+                 // Müşteri girişi sayısını artır
+                 setProperties(prev => prev.map(item => item.id === p.id ? { ...item, viewCountByClient: (item.viewCountByClient || 0) + 1 } : item));
+                 setSelectedPropertyId(p.id); 
+                 setIsClientMode(true); 
+                 setActiveTab('dashboard'); 
+               } 
                else { alert('Mülk bulunamadı.'); } 
              }} className="w-full max-w-sm space-y-4">
                <input type="text" placeholder="Örn: west-101" value={clientCodeInput} onChange={e => setClientCodeInput(e.target.value)} className="w-full px-6 py-5 bg-white border-2 border-slate-100 rounded-[2rem] text-center text-2xl font-black uppercase outline-none focus:border-[#001E3C] text-[#001E3C]" />
                <button className="w-full py-5 bg-[#001E3C] text-white rounded-[2rem] font-bold text-lg shadow-xl hover:bg-slate-800">Raporu Aç</button>
              </form>
+          </div>
+        )}
+
+        {/* Genel İstatistikler Paneli */}
+        {activeTab === 'portfolioStats' && isAdminAuthenticated && (
+          <div className="max-w-6xl mx-auto space-y-8 animate-in slide-in-from-bottom-5">
+            <h2 className="text-3xl font-black text-[#001E3C]">Portföy Genel İstatistikleri</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+               <DashboardStat label="Toplam Mülk" value={properties.length} icon={<Home size={20}/>} color="indigo" />
+               <DashboardStat label="Toplam Aktif Teklif" value={properties.reduce((acc, p) => acc + (p.offers?.filter(o => o.status === 'Beklemede').length || 0), 0)} icon={<Wallet size={20}/>} color="emerald" />
+               <DashboardStat label="Toplam Müşteri Etkileşimi" value={properties.reduce((acc, p) => acc + (p.viewCountByClient || 0), 0)} icon={<Activity size={20}/>} color="blue" />
+            </div>
+
+            <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
+               <div className="p-8 border-b border-slate-50 flex justify-between items-center">
+                  <h3 className="font-black text-[#001E3C]">Tüm Mülklerin Özeti</h3>
+                  <p className="text-xs font-bold text-slate-400">Veriler otomatik olarak güncellenir.</p>
+               </div>
+               <div className="overflow-x-auto">
+                 <table className="w-full text-left border-collapse">
+                    <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                       <tr>
+                          <th className="px-8 py-4">Mülk</th>
+                          <th className="px-8 py-4">Fiyat</th>
+                          <th className="px-8 py-4">Müşteri Girişi</th>
+                          <th className="px-8 py-4">Toplam Teklif</th>
+                          <th className="px-8 py-4">Son Teklif</th>
+                          <th className="px-8 py-4">Süre</th>
+                       </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                       {properties.map(p => {
+                          const activeOffers = p.offers?.length || 0;
+                          const lastOffer = p.offers?.length ? p.offers[p.offers.length-1].amount : 0;
+                          const days = calculateDaysOnMarket(p.listingDate);
+                          return (
+                            <tr key={p.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer" onClick={() => { setSelectedPropertyId(p.id); setActiveTab('dashboard'); }}>
+                               <td className="px-8 py-6">
+                                  <div className="flex items-center gap-3">
+                                     <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0"><img src={p.image} className="w-full h-full object-cover"/></div>
+                                     <div><p className="font-bold text-sm text-[#001E3C] line-clamp-1">{p.title}</p><p className="text-[10px] font-bold text-slate-400">{p.id}</p></div>
+                                  </div>
+                               </td>
+                               <td className="px-8 py-6 font-black text-sm text-[#001E3C]">₺{p.currentPrice.toLocaleString()}</td>
+                               <td className="px-8 py-6 text-sm font-bold text-blue-500">{p.viewCountByClient || 0} giriş</td>
+                               <td className="px-8 py-6 text-sm font-bold text-slate-500">{activeOffers} teklif</td>
+                               <td className="px-8 py-6 text-sm font-black text-emerald-600">₺{lastOffer.toLocaleString()}</td>
+                               <td className="px-8 py-6 text-[10px] font-black text-orange-500 uppercase">{days} GÜN</td>
+                            </tr>
+                          );
+                       })}
+                    </tbody>
+                 </table>
+               </div>
+            </div>
           </div>
         )}
 
@@ -605,7 +691,9 @@ const App: React.FC = () => {
                      currentPrice: 0, priceHistory: [], agentNotes: '', clientFeedback: [], offers: [], 
                      stats: [{ month: capitalizedMonth, views: 0, favorites: 0, messages: 0, calls: 0, visits: 0 }],
                      market: { comparablePrice: 0, buildingUnitsCount: 0, neighborhoodUnitsCount: 0, avgSaleDurationDays: 0 },
-                     agentName: '', agentPhone: ''
+                     agentName: '', agentPhone: '',
+                     listingDate: new Date().toISOString().split('T')[0],
+                     viewCountByClient: 0
                    };
                    setProperties(prev => [...prev, newProp]);
                    setSelectedPropertyId(id);
@@ -622,9 +710,13 @@ const App: React.FC = () => {
                      <div className="h-48 relative overflow-hidden">
                        <img src={p.image} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                        <div className="absolute bottom-4 left-4 px-3 py-1 bg-[#001E3C] text-white rounded text-[10px] font-black">{p.id}</div>
+                       <div className="absolute top-4 right-4 px-3 py-1 bg-white/90 text-[#001E3C] rounded-full text-[10px] font-black shadow-sm">{calculateDaysOnMarket(p.listingDate)} GÜN</div>
                      </div>
                      <div className="p-6 space-y-4">
-                        <h4 className="font-bold text-lg text-[#001E3C] line-clamp-1">{p.title}</h4>
+                        <div className="flex justify-between items-start gap-2">
+                           <h4 className="font-bold text-lg text-[#001E3C] line-clamp-1">{p.title}</h4>
+                           <div className="flex items-center gap-1 text-blue-500 shrink-0"><Eye size={14}/> <span className="text-xs font-black">{p.viewCountByClient || 0}</span></div>
+                        </div>
                         <div className="flex gap-2">
                            <button onClick={(e) => { e.stopPropagation(); setSelectedPropertyId(p.id); setActiveTab('dashboard'); }} className="flex-1 py-3 bg-[#001E3C] text-white rounded-xl text-xs font-bold">Rapor</button>
                            <button onClick={(e) => { e.stopPropagation(); setSelectedPropertyId(p.id); setActiveTab('edit'); }} className="p-3 bg-slate-50 text-slate-400 rounded-xl hover:text-[#001E3C]"><Edit3 size={18}/></button>
@@ -659,7 +751,18 @@ const App: React.FC = () => {
                       <AdminInput label="İlan Başlığı" value={currentProperty.title} onChange={(v:any) => updatePropertyData('title', v)} />
                       <AdminInput label="Konum / Mahalle" value={currentProperty.location} onChange={(v:any) => updatePropertyData('location', v)} />
                       <AdminInput label="Mevcut Fiyat (₺)" type="number" value={currentProperty.currentPrice} onChange={(v:any) => updatePropertyData('currentPrice', v)} />
-                      <AdminInput label="Görsel URL" value={currentProperty.image} onChange={(v:any) => updatePropertyData('image', v)} />
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">İlan Tarihi</label>
+                        <input type="date" value={currentProperty.listingDate || ''} onChange={e => updatePropertyData('listingDate', e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none text-[#001E3C]" />
+                      </div>
+                      <div className="space-y-1 col-span-1 md:col-span-2">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Mülk Görseli</label>
+                        <div className="flex gap-4">
+                           <input type="text" placeholder="Görsel URL" value={currentProperty.image} onChange={(e) => updatePropertyData('image', e.target.value)} className="flex-1 p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:border-[#001E3C] text-[#001E3C]" />
+                           <button onClick={() => fileInputRef.current?.click()} className="px-6 bg-white border border-slate-200 text-[#001E3C] rounded-2xl font-bold flex items-center gap-2 hover:bg-slate-50 shrink-0"><Upload size={18}/> Yükle</button>
+                           <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} className="hidden" />
+                        </div>
+                      </div>
                       
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Sorumlu Danışman Seçin</label>
@@ -773,6 +876,7 @@ const App: React.FC = () => {
                 <div className="space-y-2">
                    <div className="flex items-center gap-2 mb-2">
                      <span className="px-3 py-1 bg-[#001E3C] text-white text-[10px] font-black rounded-full uppercase tracking-widest">{(latestStats?.month || '-') + " Performansı"}</span>
+                     <span className="px-3 py-1 bg-white border border-slate-200 text-[#001E3C] text-[10px] font-black rounded-full shadow-sm">{calculateDaysOnMarket(currentProperty.listingDate)} GÜNDÜR YAYINDA</span>
                    </div>
                    <h2 className="text-4xl font-black text-[#001E3C] tracking-tight">{currentProperty.title}</h2>
                    <p className="flex items-center gap-2 text-slate-500 font-medium"><MapPin size={16}/> {currentProperty.location || 'Konum Girilmedi'}</p>

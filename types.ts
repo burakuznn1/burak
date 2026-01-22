@@ -85,6 +85,8 @@ export interface Property {
   surveyResponse?: SurveyResponse;
   agentName?: string;
   agentPhone?: string;
+  listingDate?: string; // İlanın sisteme giriş tarihi
+  viewCountByClient?: number; // Müşteri raporu kaç kez görüntüledi
 }
 
 export interface ClientReport {
