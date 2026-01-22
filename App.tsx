@@ -3,10 +3,10 @@ import {
   LayoutDashboard, LogOut, Sparkles, MapPin, MessageSquare, Eye, Heart, 
   Navigation, Info, Edit3, Send, Lock, CheckCircle2, Plus, Trash2, Search, 
   Home, Award, Building2, Layers, MessageCircle, RefreshCw, Settings, 
-  Loader2, User, Wallet, Timer, Target, ArrowLeft, History, DollarSign,
+  Loader2, User, Wallet, Timer, Target, ArrowLeft, History, Coins,
   Bell, Inbox, Calendar, BarChart3, TrendingUp, Phone, UserCheck, Share2,
   CheckCircle, Clock, List, Users, Briefcase, FileText, Upload, PieChart, Activity,
-  ArrowUpRight, ArrowDownRight, Scale, ChevronRight, XCircle
+  ArrowUpRight, ArrowDownRight, Scale, ChevronRight, XCircle, Camera
 } from 'lucide-react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, 
@@ -337,7 +337,6 @@ const App: React.FC = () => {
     return Math.max(0, Math.floor(diff / (1000 * 3600 * 24)));
   };
 
-  // Karşılaştırma Mantığı
   const statComparison = useMemo(() => {
     if (!currentProperty || !currentProperty.stats || currentProperty.stats.length < 2) return null;
     const stats = currentProperty.stats;
@@ -376,7 +375,7 @@ const App: React.FC = () => {
               <NavItem icon={<Home size={20}/>} label="Portföy Merkezi" active={activeTab === 'propertyList'} onClick={() => setActiveTab('propertyList')} />
               <NavItem icon={<PieChart size={20}/>} label="Genel İstatistikler" active={activeTab === 'portfolioStats'} onClick={() => setActiveTab('portfolioStats')} />
               <NavItem icon={<Users size={20}/>} label="Müşteri Yönetimi" active={activeTab === 'customers'} onClick={() => setActiveTab('customers')} />
-              <NavItem icon={<UserCheck size={20}/>} label="Danışman Yönetimi" active={activeTab === 'agents'} onClick={() => setActiveTab('agents'} />
+              <NavItem icon={<UserCheck size={20}/>} label="Danışman Yönetimi" active={activeTab === 'agents'} onClick={() => setActiveTab('agents')} />
               <NavItem icon={<Calendar size={20}/>} label="Pazarlama Takvimi" active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} />
               <NavItem icon={<Bell size={20}/>} label="Müşteri Talepleri" badge={totalNotifications} active={activeTab === 'notifications'} onClick={() => setActiveTab('notifications')} />
               {selectedPropertyId && (
@@ -424,7 +423,6 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* --- GENEL İSTATİSTİKLER (Thumbnail ve Gün eklendi) --- */}
         {activeTab === 'portfolioStats' && isAdminAuthenticated && (
           <div className="max-w-6xl mx-auto space-y-8 animate-in slide-in-from-bottom-5">
             <h2 className="text-3xl font-black text-[#001E3C]">Portföy Genel İstatistikleri</h2>
@@ -471,7 +469,6 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* --- MÜŞTERİ YÖNETİMİ (Detaylı Bina Yaşı, Kat vb.) --- */}
         {activeTab === 'customers' && isAdminAuthenticated && (
           <div className="max-w-5xl mx-auto space-y-8 animate-in slide-in-from-bottom-5">
             <h2 className="text-3xl font-black text-[#001E3C]">Müşteri Kaydı (CRM)</h2>
@@ -531,7 +528,6 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* --- DÜZENLEME SEKİMESİ (Mevcut paneller güncellendi) --- */}
         {activeTab === 'edit' && currentProperty && (
           <div className="max-w-4xl mx-auto space-y-12 animate-in slide-in-from-right-10 pb-20">
              <div className="flex justify-between items-center">
@@ -543,6 +539,36 @@ const App: React.FC = () => {
                 
                 <section className="space-y-8">
                    <h3 className="text-xl font-black text-[#001E3C] border-b pb-4 flex items-center gap-3"><Info size={24} className="text-blue-500"/> Temel Bilgiler</h3>
+                   
+                   {/* Fotoğraf Yükleme Alanı */}
+                   <div className="space-y-4">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Mülk Fotoğrafı</label>
+                      <div className="flex flex-col md:flex-row gap-6 items-center">
+                         <div className="w-40 h-40 bg-slate-100 rounded-[2rem] overflow-hidden border-2 border-dashed border-slate-300 flex items-center justify-center relative group">
+                            {currentProperty.image ? (
+                               <>
+                                  <img src={currentProperty.image} className="w-full h-full object-cover group-hover:opacity-50 transition-opacity" />
+                                  <button onClick={() => fileInputRef.current?.click()} className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-[#001E3C]">
+                                     <Camera size={32} />
+                                  </button>
+                               </>
+                            ) : (
+                               <button onClick={() => fileInputRef.current?.click()} className="flex flex-col items-center gap-2 text-slate-400">
+                                  <Camera size={32} />
+                                  <span className="text-[10px] font-black">Yükle</span>
+                               </button>
+                            )}
+                         </div>
+                         <div className="flex-1 space-y-4 w-full">
+                            <AdminInput label="Görsel URL (Alternatif)" value={currentProperty.image} onChange={(v:any) => updatePropertyData('image', v)} />
+                            <button onClick={() => fileInputRef.current?.click()} className="w-full py-4 bg-slate-50 border border-slate-200 text-[#001E3C] rounded-2xl font-black text-sm flex items-center justify-center gap-2 hover:bg-slate-100 transition-colors">
+                               <Upload size={18}/> Dosyadan Fotoğraf Seç
+                            </button>
+                            <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} className="hidden" />
+                         </div>
+                      </div>
+                   </div>
+
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       <AdminInput label="İlan Başlığı" value={currentProperty.title} onChange={(v:any) => updatePropertyData('title', v)} />
                       <AdminInput label="Konum / Adres" value={currentProperty.location} onChange={(v:any) => updatePropertyData('location', v)} />
@@ -551,7 +577,6 @@ const App: React.FC = () => {
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">İlan Tarihi</label>
                         <input type="date" value={currentProperty.listingDate || ''} onChange={e => updatePropertyData('listingDate', e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none text-[#001E3C]" />
                       </div>
-                      <AdminInput label="Görsel URL" value={currentProperty.image} onChange={(v:any) => updatePropertyData('image', v)} />
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Sorumlu Danışman</label>
                         <select value={agents.find(a => a.name === currentProperty.agentName)?.id || ""} onChange={(e) => { const selected = agents.find(a => a.id === e.target.value); if (selected) { updatePropertyData('agentName', selected.name); updatePropertyData('agentPhone', selected.phone); } }} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none text-[#001E3C]">
@@ -641,7 +666,7 @@ const App: React.FC = () => {
                               <AdminInput label="İzlenme" type="number" value={stat.views} onChange={(v:any) => handleUpdateStat(idx, 'views', v)} />
                               <AdminInput label="Favori" type="number" value={stat.favorites} onChange={(v:any) => handleUpdateStat(idx, 'favorites', v)} />
                               <AdminInput label="Mesaj" type="number" value={stat.messages} onChange={(v:any) => handleUpdateStat(idx, 'messages', v)} />
-                              <AdminInput label="Ziyaret" type="number" value={stat.visits} onChange={(v:any) => handleUpdateStat(idx, 'visits', v)} />
+                              <AdminInput label="Arama" type="number" value={stat.calls} onChange={(v:any) => handleUpdateStat(idx, 'calls', v)} />
                            </div>
                         </div>
                       ))}
@@ -655,7 +680,6 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* --- RAPOR PANELİ (Dashboard) --- */}
         {activeTab === 'dashboard' && currentProperty && (
           <div className="max-w-6xl mx-auto space-y-12 animate-in fade-in duration-700 pb-20 text-[#001E3C]">
              <div className="flex flex-col lg:flex-row justify-between items-start gap-8">
@@ -679,7 +703,7 @@ const App: React.FC = () => {
                 <DashboardStat label="Toplam Görüntüleme" value={currentProperty.stats?.reduce((acc,s)=>acc+s.views, 0) || 0} icon={<Eye size={28}/>} color="blue" />
                 <DashboardStat label="Emsal Piyasa Değeri" value={`₺${(currentProperty.market?.comparablePrice || 0).toLocaleString()}`} icon={<Target size={28}/>} color="indigo" />
                 <DashboardStat label="Aktif Teklifler" value={currentProperty.offers?.filter(o => o.status === 'Beklemede').length || 0} icon={<Wallet size={28}/>} color="emerald" />
-                <DashboardStat label="Güncel Satış Fiyatı" value={`₺${currentProperty.currentPrice.toLocaleString()}`} icon={<DollarSign size={28}/>} color="red" />
+                <DashboardStat label="Güncel Satış Fiyatı" value={`₺${currentProperty.currentPrice.toLocaleString()}`} icon={<span>₺</span>} color="red" />
              </div>
 
              <div className="space-y-6">
@@ -689,8 +713,14 @@ const App: React.FC = () => {
                 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
                     <div className="lg:col-span-2 bg-white p-10 rounded-[3rem] shadow-xl border border-slate-50">
-                        <div className="flex justify-between items-center mb-10">
+                        <div className="flex flex-wrap justify-between items-center mb-10 gap-4">
                             <h4 className="text-xl font-black flex items-center gap-3 uppercase"><BarChart3 size={24} className="text-blue-500"/> Aylık Veri Özeti</h4>
+                            <div className="flex flex-wrap gap-4 text-[9px] font-black uppercase text-slate-400">
+                                <div className="flex items-center gap-2"><div className="w-3 h-3 bg-[#001E3C] rounded-full"></div> İzlenme</div>
+                                <div className="flex items-center gap-2"><div className="w-3 h-3 bg-red-500 rounded-full"></div> Favori</div>
+                                <div className="flex items-center gap-2"><div className="w-3 h-3 bg-emerald-500 rounded-full"></div> Mesaj</div>
+                                <div className="flex items-center gap-2"><div className="w-3 h-3 bg-indigo-500 rounded-full"></div> Arama</div>
+                            </div>
                         </div>
                         <div className="h-[400px] w-full">
                             <ResponsiveContainer width="100%" height="100%">
@@ -699,8 +729,10 @@ const App: React.FC = () => {
                                     <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 'bold', fill: '#94a3b8'}} />
                                     <YAxis hide />
                                     <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={{borderRadius: '24px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)', fontWeight: 'bold'}} />
-                                    <Bar dataKey="views" name="İzlenme" fill="#001E3C" radius={[10, 10, 0, 0]} barSize={40} />
-                                    <Bar dataKey="favorites" name="Favori" fill="#f43f5e" radius={[10, 10, 0, 0]} barSize={40} />
+                                    <Bar dataKey="views" name="İzlenme" fill="#001E3C" radius={[4, 4, 0, 0]} barSize={15} />
+                                    <Bar dataKey="favorites" name="Favori" fill="#f43f5e" radius={[4, 4, 0, 0]} barSize={15} />
+                                    <Bar dataKey="messages" name="Mesaj" fill="#10b981" radius={[4, 4, 0, 0]} barSize={15} />
+                                    <Bar dataKey="calls" name="Arama" fill="#6366f1" radius={[4, 4, 0, 0]} barSize={15} />
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>
@@ -745,7 +777,7 @@ const App: React.FC = () => {
                                 <div key={idx} className="bg-white p-8 rounded-[2.5rem] shadow-lg border border-slate-50 space-y-4 group hover:border-emerald-200 transition-all">
                                     <div className="flex justify-between items-start">
                                         <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
-                                            <DollarSign size={20} />
+                                            <span>₺</span>
                                         </div>
                                         <span className="text-[10px] font-black text-slate-400 bg-slate-100 px-3 py-1 rounded-full">{ph.date}</span>
                                     </div>
@@ -867,7 +899,7 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* --- PORTFÖY LİSTESİ --- */}
+        {/* Portföy Listesi, Danışman ve Diğerleri birebir korundu */}
         {activeTab === 'propertyList' && isAdminAuthenticated && (
           <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in">
              <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -876,7 +908,7 @@ const App: React.FC = () => {
                    const id = `west-${Math.floor(100+Math.random()*900)}`;
                    const currentMonth = MONTHS_LIST[new Date().getMonth()];
                    const newProp: Property = { 
-                     id, title: 'Yeni İlan', location: 'Rize', image: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=1000&q=80',
+                     id, title: 'Yeni İlan', location: 'Rize', image: '',
                      currentPrice: 0, priceHistory: [], agentNotes: '', clientFeedback: [], offers: [], 
                      stats: [{ month: currentMonth, views: 0, favorites: 0, messages: 0, calls: 0, visits: 0 }],
                      market: { comparablePrice: 0, buildingUnitsCount: 0, neighborhoodUnitsCount: 0, avgSaleDurationDays: 0 },
@@ -895,7 +927,7 @@ const App: React.FC = () => {
                 {filteredProperties.map(p => (
                   <div key={p.id} className="bg-white rounded-[3rem] overflow-hidden border border-slate-100 shadow-md hover:shadow-2xl transition-all group cursor-pointer" onClick={() => { setSelectedPropertyId(p.id); setActiveTab('dashboard'); }}>
                      <div className="h-60 relative overflow-hidden">
-                       <img src={p.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                       <img src={p.image || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=1000&q=80'} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                        <div className="absolute top-5 left-5 px-5 py-2 bg-[#001E3C]/90 backdrop-blur-md text-white rounded-full text-[11px] font-black">{p.id}</div>
                        <div className="absolute bottom-5 right-5 px-4 py-2 bg-white/90 backdrop-blur-md text-[#001E3C] rounded-full text-[10px] font-black shadow-sm">{calculateDaysOnMarket(p.listingDate)} GÜN</div>
                      </div>
@@ -912,7 +944,6 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* --- DANIŞMAN YÖNETİMİ --- */}
         {activeTab === 'agents' && isAdminAuthenticated && (
           <div className="max-w-4xl mx-auto space-y-8 animate-in slide-in-from-bottom-5">
             <h2 className="text-3xl font-black text-[#001E3C]">Danışman Yönetimi</h2>
@@ -938,7 +969,6 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* --- PAZARLAMA TAKVİMİ --- */}
         {activeTab === 'calendar' && isAdminAuthenticated && (
           <div className="max-w-5xl mx-auto space-y-8 animate-in slide-in-from-bottom-5">
             <h2 className="text-3xl font-black text-[#001E3C]">Pazarlama Takvimi</h2>
@@ -981,7 +1011,6 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* --- TALEPLER --- */}
         {activeTab === 'notifications' && isAdminAuthenticated && (
           <div className="max-w-4xl mx-auto space-y-8 pb-20 animate-in fade-in">
              <h2 className="text-3xl font-black text-[#001E3C]">Müşteri Talepleri</h2>
@@ -990,7 +1019,7 @@ const App: React.FC = () => {
                   <div key={fb.id} className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col sm:flex-row justify-between items-start gap-4">
                      <div className="flex gap-4 flex-1">
                         <div className="w-20 h-20 rounded-2xl overflow-hidden shrink-0 border border-slate-50">
-                           <img src={fb.propertyImage} className="w-full h-full object-cover" />
+                           <img src={fb.propertyImage || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=1000&q=80'} className="w-full h-full object-cover" />
                         </div>
                         <div className="space-y-2 flex-1">
                            <div className="flex items-center gap-2">
