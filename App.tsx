@@ -5,11 +5,12 @@ import {
   Home, Award, Building2, Layers, MessageCircle, RefreshCw, Settings, 
   Loader2, User, Wallet, Timer, Target, ArrowLeft, History, DollarSign,
   Bell, Inbox, Calendar, BarChart3, TrendingUp, Phone, UserCheck, Share2,
-  CheckCircle, Clock, List, Users, Briefcase, FileText, Upload, PieChart, Activity
+  CheckCircle, Clock, List, Users, Briefcase, FileText, Upload, PieChart, Activity,
+  ArrowUpRight, ArrowDownRight, Scale
 } from 'lucide-react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, 
-  ResponsiveContainer, LineChart, Line
+  ResponsiveContainer, LineChart, Line, BarChart, Bar, Legend, Cell
 } from 'recharts';
 import { createClient } from '@supabase/supabase-js';
 import { Property, PropertyStats, Offer, ClientFeedback, PricePoint, Agent, SocialMediaTask, Customer } from './types.ts';
@@ -336,6 +337,27 @@ const App: React.FC = () => {
     return Math.max(0, Math.floor(diff / (1000 * 3600 * 24)));
   };
 
+  // Rapor Karşılaştırma Mantığı
+  const statComparison = useMemo(() => {
+    if (!currentProperty || !currentProperty.stats || currentProperty.stats.length < 2) return null;
+    const stats = currentProperty.stats;
+    const current = stats[stats.length - 1];
+    const previous = stats[stats.length - 2];
+    
+    const calcDiff = (curr: number, prev: number) => {
+        if (prev === 0) return 0;
+        return Math.round(((curr - prev) / prev) * 100);
+    };
+
+    return {
+        viewsDiff: calcDiff(current.views, previous.views),
+        favsDiff: calcDiff(current.favorites, previous.favorites),
+        visitsDiff: calcDiff(current.visits, previous.visits),
+        prevMonth: previous.month,
+        currMonth: current.month
+    };
+  }, [currentProperty]);
+
   if (isLoadingCloud) return <div className="min-h-screen bg-[#001E3C] flex items-center justify-center text-white"><Loader2 className="animate-spin" size={40}/></div>;
 
   return (
@@ -402,7 +424,7 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* --- GENEL İSTATİSTİKLER (Küçük Fotoğraf ve Gün eklendi) --- */}
+        {/* --- GENEL İSTATİSTİKLER --- */}
         {activeTab === 'portfolioStats' && isAdminAuthenticated && (
           <div className="max-w-6xl mx-auto space-y-8 animate-in slide-in-from-bottom-5">
             <h2 className="text-3xl font-black text-[#001E3C]">Portföy Genel İstatistikleri</h2>
@@ -449,7 +471,7 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* --- DANIŞMAN YÖNETİMİ (Aynı kaldı) --- */}
+        {/* --- DANIŞMAN YÖNETİMİ --- */}
         {activeTab === 'agents' && isAdminAuthenticated && (
           <div className="max-w-4xl mx-auto space-y-8 animate-in slide-in-from-bottom-5">
             <h2 className="text-3xl font-black text-[#001E3C]">Danışman Yönetimi</h2>
@@ -475,7 +497,7 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* --- PAZARLAMA TAKVİMİ (Aynı kaldı) --- */}
+        {/* --- PAZARLAMA TAKVİMİ --- */}
         {activeTab === 'calendar' && isAdminAuthenticated && (
           <div className="max-w-5xl mx-auto space-y-8 animate-in slide-in-from-bottom-5">
             <h2 className="text-3xl font-black text-[#001E3C]">Pazarlama Takvimi</h2>
@@ -518,7 +540,7 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* --- MÜŞTERİ YÖNETİMİ (Genişletildi: Notlar, Bina Yaşı, Kat Tercihi) --- */}
+        {/* --- MÜŞTERİ YÖNETİMİ --- */}
         {activeTab === 'customers' && isAdminAuthenticated && (
           <div className="max-w-5xl mx-auto space-y-8 animate-in slide-in-from-bottom-5">
             <h2 className="text-3xl font-black text-[#001E3C]">Müşteri Kaydı (CRM)</h2>
@@ -578,7 +600,7 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* --- DÜZENLEME SEKİMESİ (Tüm Alanlar Korundu) --- */}
+        {/* --- DÜZENLEME SEKİMESİ --- */}
         {activeTab === 'edit' && currentProperty && (
           <div className="max-w-4xl mx-auto space-y-12 animate-in slide-in-from-right-10 pb-20">
              <div className="flex justify-between items-center">
@@ -708,7 +730,7 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* --- PORTFÖY LİSTESİ (Aynı kaldı) --- */}
+        {/* --- PORTFÖY LİSTESİ --- */}
         {activeTab === 'propertyList' && isAdminAuthenticated && (
           <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in">
              <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
@@ -753,14 +775,15 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* --- RAPOR / ANALİZ DASHBOARD --- */}
+        {/* --- DETAYLI RAPOR / ANALİZ DASHBOARD --- */}
         {activeTab === 'dashboard' && currentProperty && (
           <div className="max-w-6xl mx-auto space-y-12 animate-in fade-in duration-700 pb-20 text-[#001E3C]">
+             {/* Header */}
              <div className="flex flex-col lg:flex-row justify-between items-start gap-8">
                 <div className="space-y-3">
                    <div className="flex items-center gap-3">
                       <span className="px-3 py-1 bg-[#001E3C] text-white text-[10px] font-black rounded-full uppercase tracking-widest">{currentProperty.id}</span>
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-full">{calculateDaysOnMarket(currentProperty.listingDate)} GÜN</span>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-full">{calculateDaysOnMarket(currentProperty.listingDate)} GÜN AKTİF</span>
                    </div>
                    <h2 className="text-5xl font-black tracking-tight leading-tight">{currentProperty.title}</h2>
                    <p className="flex items-center gap-3 text-slate-500 font-black text-xl"><MapPin size={24} className="text-red-400"/> {currentProperty.location}</p>
@@ -768,35 +791,130 @@ const App: React.FC = () => {
                 <div className="flex gap-4 w-full lg:w-auto">
                    {isAdminAuthenticated && <button onClick={() => setActiveTab('edit')} className="p-6 bg-white border border-slate-200 rounded-[2rem] shadow-sm hover:shadow-lg transition-all"><Edit3 size={32}/></button>}
                    <button onClick={handleGenerateAISummary} disabled={isGenerating} className="flex-1 lg:flex-none px-12 py-6 bg-[#001E3C] text-white rounded-[2rem] font-black shadow-2xl flex items-center justify-center gap-4 active:scale-95 transition-all">
-                     {isGenerating ? <Loader2 size={24} className="animate-spin"/> : <Sparkles size={24} className="text-amber-300"/>} AI ANALİZİ
+                     {isGenerating ? <Loader2 size={24} className="animate-spin"/> : <Sparkles size={24} className="text-amber-300"/>} AI STRATEJİK ANALİZ
                    </button>
                 </div>
              </div>
 
+             {/* Quick Stats Grid */}
              <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                <DashboardStat label="Görüntüleme" value={currentProperty.stats?.[currentProperty.stats.length-1]?.views || 0} icon={<Eye size={28}/>} color="blue" />
-                <DashboardStat label="Emsal Değer" value={`₺${(currentProperty.market?.comparablePrice || 0).toLocaleString()}`} icon={<Target size={28}/>} color="indigo" />
-                <DashboardStat label="Aktif Teklif" value={currentProperty.offers?.length || 0} icon={<Wallet size={28}/>} color="emerald" />
-                <DashboardStat label="Stok (Bina/Mah)" value={`${currentProperty.market?.buildingUnitsCount || 0}/${currentProperty.market?.neighborhoodUnitsCount || 0}`} icon={<Building2 size={28}/>} color="red" />
+                <DashboardStat label="Toplam Görüntüleme" value={currentProperty.stats?.reduce((acc,s)=>acc+s.views, 0) || 0} icon={<Eye size={28}/>} color="blue" />
+                <DashboardStat label="Emsal Piyasa Değeri" value={`₺${(currentProperty.market?.comparablePrice || 0).toLocaleString()}`} icon={<Target size={28}/>} color="indigo" />
+                <DashboardStat label="Gelen Teklifler" value={currentProperty.offers?.length || 0} icon={<Wallet size={28}/>} color="emerald" />
+                <DashboardStat label="Güncel Satış Fiyatı" value={`₺${currentProperty.currentPrice.toLocaleString()}`} icon={<DollarSign size={28}/>} color="red" />
              </div>
 
+             {/* Karşılaştırmalı Aylık Analiz - DETAYLI ALAN */}
+             <div className="space-y-6">
+                <div className="flex items-center gap-3 border-l-4 border-[#001E3C] pl-6 mb-4">
+                    <h3 className="text-3xl font-black uppercase tracking-tighter">Karşılaştırmalı Performans Analizi</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                    <div className="lg:col-span-2 bg-white p-10 rounded-[3rem] shadow-xl border border-slate-50">
+                        <div className="flex justify-between items-center mb-10">
+                            <h4 className="text-xl font-black flex items-center gap-3 uppercase"><BarChart3 size={24} className="text-blue-500"/> Aylık Veri Karşılaştırması</h4>
+                            <div className="flex gap-4 text-[10px] font-black uppercase text-slate-400">
+                                <div className="flex items-center gap-2"><div className="w-3 h-3 bg-[#001E3C] rounded-full"></div> İzlenme</div>
+                                <div className="flex items-center gap-2"><div className="w-3 h-3 bg-red-500 rounded-full"></div> Favori</div>
+                            </div>
+                        </div>
+                        <div className="h-[400px] w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={currentProperty.stats}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                    <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 'bold', fill: '#94a3b8'}} />
+                                    <YAxis hide />
+                                    <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={{borderRadius: '24px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)', fontWeight: 'bold'}} />
+                                    <Bar dataKey="views" name="İzlenme" fill="#001E3C" radius={[10, 10, 0, 0]} barSize={40} />
+                                    <Bar dataKey="favorites" name="Favori" fill="#f43f5e" radius={[10, 10, 0, 0]} barSize={40} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+
+                    <div className="space-y-6">
+                        {statComparison ? (
+                            <>
+                                <div className="bg-white p-8 rounded-[2.5rem] shadow-lg border border-slate-50 flex flex-col justify-between h-full">
+                                    <div className="space-y-6">
+                                        <h4 className="text-lg font-black uppercase tracking-tight text-[#001E3C] border-b pb-4">Aylık Değişim Özetleri</h4>
+                                        <ComparisonRow label="İzlenme Trendi" value={statComparison.viewsDiff} month={statComparison.currMonth} />
+                                        <ComparisonRow label="Favori Kazanımı" value={statComparison.favsDiff} month={statComparison.currMonth} />
+                                        <ComparisonRow label="Fiziksel Ziyaret" value={statComparison.visitsDiff} month={statComparison.currMonth} />
+                                    </div>
+                                    <div className="mt-8 p-6 bg-slate-50 rounded-2xl border border-slate-100 italic text-xs font-bold text-slate-500">
+                                        * {statComparison.prevMonth} ayı verileri ile {statComparison.currMonth} ayı verileri baz alınarak hesaplanmıştır.
+                                    </div>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="bg-white p-10 rounded-[2.5rem] shadow-lg border border-slate-50 text-center flex flex-col items-center justify-center gap-4 text-slate-400 font-bold">
+                                <Activity size={48} className="opacity-20" />
+                                <p>Karşılaştırmalı analiz için en az 2 aylık veri girişi gerekmektedir.</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+             </div>
+
+             {/* Piyasa ve Stok Verileri - FARKLI VE DEĞERLENDİRİLMİŞ ALAN */}
+             <div className="space-y-6">
+                <div className="flex items-center gap-3 border-l-4 border-indigo-500 pl-6 mb-4">
+                    <h3 className="text-3xl font-black uppercase tracking-tighter">Piyasa Rekabet & Stok Değerlendirmesi</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                    <div className="bg-[#001E3C] p-10 rounded-[3.5rem] text-white shadow-2xl relative overflow-hidden group">
+                        <div className="relative z-10 space-y-8">
+                            <div className="flex items-center gap-4">
+                                <Scale size={36} className="text-blue-400"/>
+                                <h4 className="text-2xl font-black">Fiyat & Konumlandırma</h4>
+                            </div>
+                            <div className="flex items-end gap-6 border-b border-white/10 pb-10">
+                                <div>
+                                    <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-2">Sizin Fiyatınız</p>
+                                    <p className="text-3xl font-black text-white">₺{currentProperty.currentPrice.toLocaleString()}</p>
+                                </div>
+                                <div className="flex-1 h-1 bg-white/10 relative rounded-full mb-4">
+                                    <div className="absolute top-1/2 -translate-y-1/2 left-[45%] w-4 h-4 bg-blue-400 rounded-full shadow-[0_0_15px_rgba(96,165,250,0.8)]"></div>
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-2">Emsal Ortalaması</p>
+                                    <p className="text-3xl font-black text-blue-400">₺{(currentProperty.market?.comparablePrice || 0).toLocaleString()}</p>
+                                </div>
+                            </div>
+                            <p className="text-lg font-medium italic text-white/70">
+                                {currentProperty.currentPrice > (currentProperty.market?.comparablePrice || 0) 
+                                    ? "Mülkünüz piyasa ortalamasının üzerinde konumlanmıştır. Bu durum seçici alıcı profilini hedeflerken, pazarlık payı stratejisini ön plana çıkarmaktadır."
+                                    : "Mülkünüz piyasa ortalamasına göre rekabetçi bir fiyata sahiptir. Bu konumlandırma, hızlı satış için ciddi bir avantaj sağlamaktadır."}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <InventoryCard 
+                            label="Binadaki Rakip Sayısı" 
+                            count={currentProperty.market?.buildingUnitsCount || 0} 
+                            desc="Aynı bina içerisinde sizinle rekabet eden satılık üniteler."
+                            status={currentProperty.market?.buildingUnitsCount > 2 ? 'Yüksek Rekabet' : 'Düşük Rekabet'}
+                            statusColor={currentProperty.market?.buildingUnitsCount > 2 ? 'red' : 'emerald'}
+                        />
+                        <InventoryCard 
+                            label="Mahalledeki Stok Yoğunluğu" 
+                            count={currentProperty.market?.neighborhoodUnitsCount || 0} 
+                            desc="Bölgedeki benzer metrekare ve oda sayısına sahip ilanlar."
+                            status={currentProperty.market?.neighborhoodUnitsCount > 10 ? 'Yoğun Piyasa' : 'Butik Arz'}
+                            statusColor={currentProperty.market?.neighborhoodUnitsCount > 10 ? 'amber' : 'emerald'}
+                        />
+                    </div>
+                </div>
+             </div>
+
+             {/* Fiyat Trendi & AI Summary */}
              <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                 <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-slate-50">
-                   <h4 className="text-xl font-black mb-8">Aylık Performans</h4>
-                   <div className="h-[300px] w-full">
-                     <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={currentProperty.stats}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                          <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 'bold', fill: '#94a3b8'}} />
-                          <YAxis hide />
-                          <Tooltip contentStyle={{borderRadius: '24px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)', fontWeight: 'bold'}} />
-                          <Area type="monotone" dataKey="views" name="İzlenme" stroke="#001E3C" strokeWidth={5} fillOpacity={0.05} fill="#001E3C" />
-                        </AreaChart>
-                     </ResponsiveContainer>
-                   </div>
-                </div>
-                <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-slate-50">
-                   <h4 className="text-xl font-black mb-8">Fiyat Trendi</h4>
+                   <h4 className="text-xl font-black mb-8 flex items-center gap-3 uppercase"><TrendingUp size={24} className="text-emerald-500"/> Fiyat Hareketliliği</h4>
                    <div className="h-[300px] w-full">
                      <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={currentProperty.priceHistory}>
@@ -809,21 +927,29 @@ const App: React.FC = () => {
                      </ResponsiveContainer>
                    </div>
                 </div>
+
+                {aiSummary ? (
+                   <div className="bg-white p-12 rounded-[3rem] shadow-2xl border border-blue-50 relative overflow-hidden flex flex-col justify-center">
+                        <div className="relative z-10 space-y-6">
+                            <h4 className="text-2xl font-black text-[#001E3C] flex items-center gap-4"><Sparkles size={36} className="text-amber-500"/> AI Karar Destek Analizi</h4>
+                            <div className="prose max-w-none text-[#001E3C] leading-relaxed font-bold text-xl italic whitespace-pre-line">"{aiSummary}"</div>
+                        </div>
+                   </div>
+                ) : (
+                    <div className="bg-slate-100 p-12 rounded-[3rem] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-center gap-4">
+                        <Sparkles size={48} className="text-slate-300" />
+                        <p className="font-bold text-slate-400">Yapay zeka analizini başlatmak için yukarıdaki "AI ANALİZİ" butonuna tıklayınız.</p>
+                    </div>
+                )}
              </div>
 
-             {aiSummary && (
-               <div className="bg-white p-12 rounded-[4rem] shadow-2xl border border-blue-50 relative overflow-hidden">
-                  <h4 className="text-2xl font-black text-[#001E3C] mb-10 flex items-center gap-4"><Sparkles size={36} className="text-amber-500"/> Stratejik Analiz</h4>
-                  <div className="prose max-w-none text-[#001E3C] leading-relaxed font-bold text-2xl italic whitespace-pre-line">"{aiSummary}"</div>
-               </div>
-             )}
-
+             {/* Teklifler & Danışman Notu */}
              <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                 <div className="bg-white p-10 rounded-[3rem] border border-slate-50 shadow-xl space-y-8">
-                   <h4 className="text-2xl font-black flex items-center gap-3"><Wallet size={28} className="text-emerald-500"/> Gelen Teklifler</h4>
+                   <h4 className="text-2xl font-black flex items-center gap-3"><Wallet size={28} className="text-emerald-500"/> Alıcı Teklifleri</h4>
                    <div className="space-y-4 max-h-[350px] overflow-y-auto pr-3 custom-scrollbar">
                       {(!currentProperty.offers || currentProperty.offers.length === 0) ? (
-                        <div className="py-20 text-center text-slate-300 font-black text-xl italic">Henüz teklif girilmedi...</div>
+                        <div className="py-20 text-center text-slate-300 font-black text-xl italic">Henüz resmi teklif girilmedi...</div>
                       ) : (
                         currentProperty.offers.map(offer => (
                           <div key={offer.id} className="flex items-center justify-between p-7 bg-slate-50 rounded-[2rem] border border-slate-100">
@@ -831,21 +957,22 @@ const App: React.FC = () => {
                                 <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center font-black text-2xl shadow-inner">{offer.bidder.charAt(0)}</div>
                                 <div><p className="font-black text-xl">{offer.bidder.substring(0,2)}***</p><p className="text-[10px] font-black text-slate-400">{offer.date}</p></div>
                              </div>
-                             <p className="font-black text-2xl">₺{offer.amount.toLocaleString()}</p>
+                             <p className="font-black text-2xl text-[#001E3C]">₺{offer.amount.toLocaleString()}</p>
                           </div>
                         ))
                       )}
                    </div>
                 </div>
-                <div className="bg-[#001E3C] p-12 rounded-[3.5rem] text-white shadow-2xl">
+                
+                <div className="bg-[#001E3C] p-12 rounded-[3.5rem] text-white flex flex-col justify-between shadow-2xl relative overflow-hidden">
                    <div className="space-y-10">
-                      <div className="flex items-center gap-4"><MessageCircle size={40} className="text-blue-400"/><h4 className="text-3xl font-black">Danışman Notu</h4></div>
-                      <p className="text-2xl font-medium italic text-white/80 leading-relaxed">"{currentProperty.agentNotes || 'Mülkünüz için stratejik planlamalarımız devam ediyor.'}"</p>
+                      <div className="flex items-center gap-4"><MessageCircle size={40} className="text-blue-400"/><h4 className="text-3xl font-black">Danışman Görüşü</h4></div>
+                      <p className="text-2xl font-medium italic text-white/80 leading-relaxed">"{currentProperty.agentNotes || 'Mülkünüz için en iyi satış stratejisini kurguluyoruz. Süreç profesyonel ekibimiz tarafından titizlikle yönetilmektedir.'}"</p>
                    </div>
                    <div className="mt-16 pt-10 border-t border-white/10 flex items-center justify-between">
                       <div className="flex items-center gap-5">
                          <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center text-blue-400"><UserCheck size={36}/></div>
-                         <div><p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Danışman</p><p className="text-2xl font-black">{currentProperty.agentName || 'TÜRKWEST Danışmanı'}</p></div>
+                         <div><p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Portföy Yöneticisi</p><p className="text-2xl font-black">{currentProperty.agentName || 'TÜRKWEST Danışmanı'}</p></div>
                       </div>
                       {currentProperty.agentPhone && <a href={`tel:${currentProperty.agentPhone}`} className="w-16 h-16 bg-blue-500 text-white rounded-2xl flex items-center justify-center shadow-xl active:scale-95 transition-transform"><Phone size={32}/></a>}
                    </div>
@@ -854,7 +981,7 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* --- MÜŞTERİ TALEPLERİ (Fotoğraf ve Git Butonu eklendi) --- */}
+        {/* --- MÜŞTERİ TALEPLERİ (Thumbnail & Link korundu) --- */}
         {activeTab === 'notifications' && isAdminAuthenticated && (
           <div className="max-w-4xl mx-auto space-y-8 pb-20 animate-in fade-in">
              <h2 className="text-3xl font-black text-[#001E3C]">Müşteri Talepleri</h2>
@@ -911,6 +1038,41 @@ const App: React.FC = () => {
 };
 
 // --- YARDIMCI BİLEŞENLER ---
+
+const ComparisonRow = ({ label, value, month }: { label: string, value: number, month: string }) => {
+    const isUp = value > 0;
+    const isNeutral = value === 0;
+    return (
+        <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl group hover:bg-slate-100 transition-colors">
+            <span className="text-sm font-black text-[#001E3C] uppercase tracking-tighter">{label}</span>
+            <div className={`flex items-center gap-1 font-black ${isNeutral ? 'text-slate-400' : isUp ? 'text-emerald-500' : 'text-red-500'}`}>
+                {isUp ? <ArrowUpRight size={18} /> : isNeutral ? <Minus size={18} /> : <ArrowDownRight size={18} />}
+                <span className="text-lg">{isNeutral ? '-%0' : `%${Math.abs(value)}`}</span>
+            </div>
+        </div>
+    );
+};
+
+const Minus = ({ size }: { size: number }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+);
+
+const InventoryCard = ({ label, count, desc, status, statusColor }: any) => {
+    const colorClass = statusColor === 'red' ? 'bg-red-50 text-red-600' : statusColor === 'amber' ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600';
+    return (
+        <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-50 flex flex-col justify-between">
+            <div className="space-y-4">
+                <div className="flex justify-between items-start">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</p>
+                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${colorClass}`}>{status}</span>
+                </div>
+                <h5 className="text-4xl font-black text-[#001E3C]">{count}</h5>
+                <p className="text-xs font-bold text-slate-400 leading-relaxed">{desc}</p>
+            </div>
+        </div>
+    );
+};
+
 const NavItem = ({ icon, label, active, onClick, badge }: any) => (
   <button onClick={onClick} className={`w-full flex items-center justify-between px-6 py-4 rounded-2xl transition-all ${active ? 'bg-white/10 text-white font-black' : 'text-white/30 hover:text-white'}`}>
     <div className="flex items-center gap-4"><span>{icon}</span><span className="text-[13px] uppercase tracking-wide font-black">{label}</span></div>
@@ -932,7 +1094,7 @@ const DashboardStat = ({ label, value, icon, color }: any) => {
        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${styles[color]} group-hover:scale-110 transition-transform`}>{icon}</div>
        <div>
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</p>
-          <h4 className="text-2xl font-black text-[#001E3C] mt-1">{value}</h4>
+          <h4 className="text-2xl font-black text-[#001E3C] mt-1 whitespace-nowrap overflow-hidden text-ellipsis">{value}</h4>
        </div>
     </div>
   );
