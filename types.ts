@@ -64,6 +64,8 @@ export interface Customer {
   phone: string;
   preferredSize: string; // 1+1, 2+1 vb.
   preferredNeighborhood: string;
+  preferredBuildingAge: string; // Yeni
+  preferredFloor: string; // Yeni
   budget: number;
   category: 'Satılık' | 'Kiralık';
   lastContactDate: string;
