@@ -146,10 +146,12 @@ const [newPriceUpdate, setNewPriceUpdate] = useState({
     if (isLoadingCloud) return;
     const fullData = { properties, agents, socialMediaTasks, customers };
     
+    // Kota aşımı hatasını (QuotaExceededError) önlemek için try-catch bloğu
     try {
       localStorage.setItem('west_full_data', JSON.stringify(fullData));
     } catch (e) {
-      console.warn("LocalStorage quota exceeded. Data is still available via Supabase if connected.", e);
+      // Hata sessizce yakalanır, uygulama çalışmaya devam eder
+      console.warn("Tarayıcı hafızası dolu, veriler yerel kaydedilemedi. Bulut senkronizasyonu devrede.", e);
     }
     
     if (supabase && (isAdminAuthenticated || isClientMode)) {
@@ -450,7 +452,7 @@ const [newPriceUpdate, setNewPriceUpdate] = useState({
                  setActiveTab('dashboard'); 
                } 
                else { alert('Mülk bulunamadı.'); } 
-             }} className="w-full max-w-sm space-y-4">
+             }} className="w-full max-sm:max-w-full max-w-sm space-y-4">
                <input type="text" placeholder="Örn: west-101" value={clientCodeInput} onChange={e => setClientCodeInput(e.target.value)} className="w-full px-6 py-5 bg-white border-2 border-slate-100 rounded-[2rem] text-center text-2xl font-black uppercase outline-none focus:border-[#001E3C] text-[#001E3C]" />
                <button className="w-full py-5 bg-[#001E3C] text-white rounded-[2rem] font-bold text-lg shadow-xl hover:bg-slate-800">Raporu Aç</button>
              </form>
