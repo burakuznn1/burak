@@ -389,26 +389,26 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* CALENDAR TAB - FUNCTIONAL */}
+        {/* CALENDAR TAB */}
         {activeTab === 'calendar' && isAdminAuthenticated && (
           <div className="max-w-4xl mx-auto space-y-10 animate-in slide-in-from-bottom-5 text-left">
             <h2 className="text-4xl font-black text-[#001E3C]">İş Takvimi & Randevular</h2>
             <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl space-y-6">
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
                   <AdminInput label="Randevu Tarihi" type="date" value={newCalendarEvent.date} onChange={(v:any) => setNewCalendarEvent({...newCalendarEvent, date: v})} />
                   <AdminInput label="Konu / Başlık" value={newCalendarEvent.title} onChange={(v:any) => setNewCalendarEvent({...newCalendarEvent, title: v})} />
                </div>
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block ml-1">İlgili Portföy</label>
-                    <select value={newCalendarEvent.propId} onChange={e => setNewCalendarEvent({...newCalendarEvent, propId: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none text-[#001E3C]">
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+                  <div className="space-y-2 text-left">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block ml-1 text-left">İlgili Portföy</label>
+                    <select value={newCalendarEvent.propId} onChange={e => setNewCalendarEvent({...newCalendarEvent, propId: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none text-[#001E3C] text-left">
                       <option value="">Seçiniz...</option>
                       {properties.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
                     </select>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block ml-1">İşlem Tipi</label>
-                    <select value={newCalendarEvent.type} onChange={e => setNewCalendarEvent({...newCalendarEvent, type: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none text-[#001E3C]">
+                  <div className="space-y-2 text-left">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block ml-1 text-left">İşlem Tipi</label>
+                    <select value={newCalendarEvent.type} onChange={e => setNewCalendarEvent({...newCalendarEvent, type: e.target.value})} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none text-[#001E3C] text-left">
                       <option value="Gezdirme">Gezdirme (Sunum)</option>
                       <option value="Sözleşme">Sözleşme Görüşmesi</option>
                       <option value="Fotoğraf">Fotoğraf/Video Çekimi</option>
@@ -416,19 +416,19 @@ const App: React.FC = () => {
                     </select>
                   </div>
                </div>
-               <button onClick={handleAddCalendarEvent} className="w-full py-4 bg-[#001E3C] text-white rounded-2xl font-black text-xs uppercase shadow-xl hover:bg-slate-800">Randevu Ekle</button>
+               <button onClick={handleAddCalendarEvent} className="w-full py-4 bg-[#001E3C] text-white rounded-2xl font-black text-xs uppercase shadow-xl hover:bg-slate-800 transition-all">Randevu Ekle</button>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-4 text-left">
               {calendarEvents.sort((a,b) => b.date.localeCompare(a.date)).map(ev => (
-                <div key={ev.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-md flex items-center justify-between group">
-                  <div className="flex items-center gap-6">
-                    <div className="w-14 h-14 bg-slate-50 rounded-2xl flex flex-col items-center justify-center border border-slate-100">
+                <div key={ev.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-md flex items-center justify-between group text-left">
+                  <div className="flex items-center gap-6 text-left">
+                    <div className="w-14 h-14 bg-slate-50 rounded-2xl flex flex-col items-center justify-center border border-slate-100 text-left">
                        <p className="text-[10px] font-black text-slate-400 uppercase">{ev.date.split('-')[1]}</p>
                        <p className="text-xl font-black text-[#001E3C]">{ev.date.split('-')[2]}</p>
                     </div>
-                    <div>
+                    <div className="text-left">
                       <h4 className="font-black text-lg text-[#001E3C]">{ev.title}</h4>
-                      <div className="flex items-center gap-3 text-xs font-bold text-slate-400">
+                      <div className="flex items-center gap-3 text-xs font-bold text-slate-400 text-left">
                         <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded uppercase">{ev.type}</span>
                         <span>{properties.find(p => p.id === ev.propId)?.title || 'Genel Görev'}</span>
                       </div>
@@ -445,16 +445,16 @@ const App: React.FC = () => {
         {activeTab === 'notifications' && isAdminAuthenticated && (
           <div className="max-w-4xl mx-auto space-y-10 animate-in slide-in-from-bottom-5 text-left">
             <h2 className="text-4xl font-black text-[#001E3C]">Müşteri Talepleri</h2>
-            <div className="space-y-4">
+            <div className="space-y-4 text-left">
               {allNotifications.length === 0 ? (
                 <div className="bg-white p-20 rounded-[3rem] text-center border border-slate-100 shadow-xl"><Bell size={64} className="mx-auto text-slate-200 mb-4"/><p className="text-slate-400 font-black italic">Henüz bir talep bulunmuyor.</p></div>
               ) : (
                 allNotifications.map((notif, idx) => (
-                  <div key={idx} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl flex flex-col md:flex-row justify-between items-start gap-6 hover:border-blue-200 transition-all">
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-3"><span className="text-[10px] font-black bg-blue-50 text-[#001E3C] px-3 py-1 rounded-full uppercase">{notif.propId}</span><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{notif.feedback.date}</span></div>
+                  <div key={idx} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl flex flex-col md:flex-row justify-between items-start gap-6 hover:border-blue-200 transition-all text-left">
+                    <div className="space-y-3 text-left">
+                      <div className="flex items-center gap-3 text-left"><span className="text-[10px] font-black bg-blue-50 text-[#001E3C] px-3 py-1 rounded-full uppercase">{notif.propId}</span><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{notif.feedback.date}</span></div>
                       <h4 className="font-black text-xl text-[#001E3C]">{notif.propTitle}</h4>
-                      <p className="text-slate-600 font-bold italic leading-relaxed">"{notif.feedback.message}"</p>
+                      <p className="text-slate-600 font-bold italic leading-relaxed text-left">"{notif.feedback.message}"</p>
                       {notif.feedback.requestedPrice && <p className="text-emerald-600 font-black text-xs uppercase">Fiyat Talebi: ₺{notif.feedback.requestedPrice.toLocaleString()}</p>}
                     </div>
                     <button onClick={() => { setSelectedPropertyId(notif.propId); setActiveTab('dashboard'); }} className="px-6 py-3 bg-[#001E3C] text-white rounded-xl text-xs font-black uppercase shadow-lg">Git</button>
@@ -469,19 +469,19 @@ const App: React.FC = () => {
         {activeTab === 'agents' && isAdminAuthenticated && (
           <div className="max-w-4xl mx-auto space-y-10 animate-in slide-in-from-bottom-5 text-left">
             <h2 className="text-4xl font-black text-[#001E3C]">Ekip Yönetimi</h2>
-            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl space-y-6 text-left">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
                 <AdminInput label="Ad Soyad" value={newAgent.name} onChange={(v:any) => setNewAgent({...newAgent, name: v})} />
                 <AdminInput label="Telefon" value={newAgent.phone} onChange={(v:any) => setNewAgent({...newAgent, phone: v})} />
               </div>
               <button onClick={handleAddAgent} className="w-full py-4 bg-[#001E3C] text-white rounded-2xl font-black text-xs uppercase shadow-xl hover:bg-slate-800 transition-all">Danışman Ekle</button>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
               {agents.map(a => (
                 <div key={a.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-md flex justify-between items-center group text-left">
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-4 text-left">
                     <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center font-black">{a.name.charAt(0)}</div>
-                    <div><p className="font-black text-[#001E3C]">{a.name}</p><p className="text-xs font-bold text-slate-400">{a.phone}</p></div>
+                    <div className="text-left"><p className="font-black text-[#001E3C]">{a.name}</p><p className="text-xs font-bold text-slate-400">{a.phone}</p></div>
                   </div>
                   <button onClick={() => setAgents(prev => prev.filter(x => x.id !== a.id))} className="text-red-300 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={20}/></button>
                 </div>
@@ -494,23 +494,23 @@ const App: React.FC = () => {
         {activeTab === 'customers' && isAdminAuthenticated && (
           <div className="max-w-5xl mx-auto space-y-10 animate-in slide-in-from-bottom-5 text-left">
             <h2 className="text-4xl font-black text-[#001E3C]">Müşteri Kayıtları (CRM)</h2>
-            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl space-y-6 text-left">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
                 <AdminInput label="Ad Soyad" value={newCustomer.name} onChange={(v:any) => setNewCustomer({...newCustomer, name: v})} />
                 <AdminInput label="Telefon" value={newCustomer.phone} onChange={(v:any) => setNewCustomer({...newCustomer, phone: v})} />
                 <AdminInput label="Bütçe (₺)" type="number" value={newCustomer.budget} onChange={(v:any) => setNewCustomer({...newCustomer, budget: v})} />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
                 <AdminInput label="Aranan Bölge" value={newCustomer.preferredNeighborhood} onChange={(v:any) => setNewCustomer({...newCustomer, preferredNeighborhood: v})} />
                 <AdminInput label="Daire Tipi" value={newCustomer.preferredSize} onChange={(v:any) => setNewCustomer({...newCustomer, preferredSize: v})} />
               </div>
               <button onClick={handleAddCustomer} className="w-full py-4 bg-[#001E3C] text-white rounded-2xl font-black text-xs uppercase shadow-xl hover:bg-slate-800 transition-all">Müşteri Kaydet</button>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
               {customers.map(c => (
                 <div key={c.id} className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-lg group text-left">
-                  <div className="flex justify-between mb-4"><h4 className="font-black text-xl text-[#001E3C]">{c.name}</h4><button onClick={() => setCustomers(prev => prev.filter(x => x.id !== c.id))} className="text-red-300 hover:text-red-500 transition-all"><Trash2 size={20}/></button></div>
-                  <div className="space-y-2 text-sm font-bold text-slate-500"><p>Telefon: <span className="text-[#001E3C]">{c.phone}</span></p><p>Bütçe: <span className="text-emerald-600 font-black">₺{c.budget?.toLocaleString()}</span></p><p>Tercih: <span className="text-[#001E3C]">{c.preferredNeighborhood} / {c.preferredSize}</span></p></div>
+                  <div className="flex justify-between mb-4 text-left"><h4 className="font-black text-xl text-[#001E3C]">{c.name}</h4><button onClick={() => setCustomers(prev => prev.filter(x => x.id !== c.id))} className="text-red-300 hover:text-red-500 transition-all"><Trash2 size={20}/></button></div>
+                  <div className="space-y-2 text-sm font-bold text-slate-500 text-left"><p>Telefon: <span className="text-[#001E3C]">{c.phone}</span></p><p>Bütçe: <span className="text-emerald-600 font-black">₺{c.budget?.toLocaleString()}</span></p><p>Tercih: <span className="text-[#001E3C]">{c.preferredNeighborhood} / {c.preferredSize}</span></p></div>
                 </div>
               ))}
             </div>
@@ -521,21 +521,21 @@ const App: React.FC = () => {
         {activeTab === 'portfolioStats' && isAdminAuthenticated && (
           <div className="max-w-6xl mx-auto space-y-10 animate-in slide-in-from-bottom-5 text-left">
             <h2 className="text-4xl font-black text-[#001E3C]">Genel Portföy Analizi</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
                <DashboardStat label="Toplam Mülk Sayısı" value={portfolioTotals.count} icon={<Home size={32}/>} color="blue" />
-               <DashboardStat label="Aktif Bekleyen Teklif" value={portfolioTotals.offers} icon={<Wallet size={32}/>} color="emerald" />
+               <DashboardStat label="Bekleyen Teklif" value={portfolioTotals.offers} icon={<Wallet size={32}/>} color="emerald" />
                <DashboardStat label="Toplam Görüntülenme" value={portfolioTotals.views} icon={<Eye size={32}/>} color="indigo" />
             </div>
             <div className="bg-white rounded-[3rem] border border-slate-100 shadow-xl overflow-hidden text-left">
-               <div className="p-8 border-b font-black text-[#001E3C]">Performans Özeti</div>
-               <div className="overflow-x-auto">
+               <div className="p-8 border-b font-black text-[#001E3C] text-left">Performans Özeti</div>
+               <div className="overflow-x-auto text-left">
                   <table className="w-full text-left">
-                    <thead className="bg-slate-50 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                    <thead className="bg-slate-50 text-[10px] font-black text-slate-500 uppercase tracking-widest text-left">
                       <tr><th className="px-8 py-4">KOD</th><th className="px-8 py-4">MÜLK ADI</th><th className="px-8 py-4">GÜNCEL FİYAT</th><th className="px-8 py-4">DURUM</th></tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-slate-100 text-left">
                       {properties.map(p => (
-                        <tr key={p.id} className="hover:bg-slate-50/50 cursor-pointer" onClick={() => { setSelectedPropertyId(p.id); setActiveTab('dashboard'); }}>
+                        <tr key={p.id} className="hover:bg-slate-50/50 cursor-pointer text-left" onClick={() => { setSelectedPropertyId(p.id); setActiveTab('dashboard'); }}>
                           <td className="px-8 py-6 font-black text-slate-400">{p.id}</td>
                           <td className="px-8 py-6 font-black text-[#001E3C]">{p.title}</td>
                           <td className="px-8 py-6 font-black text-emerald-600">₺{p.currentPrice.toLocaleString()}</td>
@@ -552,7 +552,7 @@ const App: React.FC = () => {
         {/* PROPERTY LIST TAB */}
         {activeTab === 'propertyList' && isAdminAuthenticated && (
           <div className="max-w-6xl mx-auto space-y-10 animate-in fade-in text-left">
-             <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+             <div className="flex flex-col sm:flex-row justify-between items-center gap-4 text-left">
                <h2 className="text-4xl font-black text-[#001E3C]">Portföy Yönetimi</h2>
                <button onClick={() => { 
                  const id = `west-${Math.floor(100+Math.random()*900)}`; 
@@ -564,21 +564,21 @@ const App: React.FC = () => {
                  setActiveTab('edit'); 
                }} className="px-10 py-5 bg-[#001E3C] text-white rounded-[2rem] font-black flex items-center gap-2 shadow-xl hover:bg-slate-800 transition-all uppercase"><Plus size={20}/> Yeni Mülk Ekle</button>
              </div>
-             <div className="relative">
+             <div className="relative text-left">
                <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={24}/>
                <input type="text" placeholder="Kod veya isim ile ara..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-16 pr-8 py-5 bg-white border border-slate-200 rounded-[2.5rem] outline-none font-bold text-[#001E3C] shadow-sm focus:border-[#001E3C]" />
              </div>
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 text-left">
                {filteredProperties.map(p => (
-                 <div key={p.id} className="bg-white rounded-[3rem] overflow-hidden border border-slate-100 shadow-lg hover:shadow-2xl transition-all group cursor-pointer" onClick={() => { setSelectedPropertyId(p.id); setActiveTab('dashboard'); }}>
-                   <div className="h-64 relative overflow-hidden bg-slate-100">
+                 <div key={p.id} className="bg-white rounded-[3rem] overflow-hidden border border-slate-100 shadow-lg hover:shadow-2xl transition-all group cursor-pointer text-left" onClick={() => { setSelectedPropertyId(p.id); setActiveTab('dashboard'); }}>
+                   <div className="h-64 relative overflow-hidden bg-slate-100 text-left">
                      {p.image ? <img src={p.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" /> : <div className="w-full h-full flex items-center justify-center text-slate-300"><Camera size={64}/></div>}
                      <div className="absolute top-5 left-5 px-5 py-2 bg-[#001E3C]/90 backdrop-blur-md text-white rounded-full text-[11px] font-black">{p.id}</div>
                    </div>
-                   <div className="p-8 space-y-4">
-                     <h4 className="font-black text-2xl truncate text-[#001E3C] uppercase">{p.title}</h4>
-                     <p className="text-slate-400 text-sm font-bold flex items-center gap-2"><MapPin size={16}/> {p.location}</p>
-                     <div className="flex gap-4 pt-4 border-t border-slate-50">
+                   <div className="p-8 space-y-4 text-left">
+                     <h4 className="font-black text-2xl truncate text-[#001E3C] uppercase text-left">{p.title}</h4>
+                     <p className="text-slate-400 text-sm font-bold flex items-center gap-2 text-left"><MapPin size={16}/> {p.location}</p>
+                     <div className="flex gap-4 pt-4 border-t border-slate-50 text-left">
                        <button onClick={(e) => { e.stopPropagation(); setSelectedPropertyId(p.id); setActiveTab('dashboard'); }} className="flex-1 py-4 bg-[#001E3C] text-white rounded-2xl text-xs font-black uppercase">Rapor Gör</button>
                        <button onClick={(e) => { e.stopPropagation(); setSelectedPropertyId(p.id); setActiveTab('edit'); }} className="p-4 bg-slate-100 rounded-2xl hover:bg-blue-50 transition-all text-[#001E3C]"><Edit3 size={20}/></button>
                      </div>
@@ -589,20 +589,20 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* EDIT SECTION - ENHANCED OFFER AND PRICE MGMT */}
+        {/* EDIT SECTION - ALL FEATURES INTACT */}
         {activeTab === 'edit' && currentProperty && isAdminAuthenticated && (
           <div className="max-w-4xl mx-auto space-y-12 animate-in slide-in-from-right-10 pb-20 text-left">
-             <div className="flex justify-between items-center">
+             <div className="flex justify-between items-center text-left">
                <button onClick={() => setActiveTab('propertyList')} className="flex items-center gap-2 text-slate-500 font-bold hover:text-[#001E3C] transition-colors"><ArrowLeft size={20}/> Portföy Listesi</button>
                <button onClick={() => handleDeleteProperty(currentProperty.id)} className="flex items-center gap-2 px-6 py-3 bg-red-50 text-red-500 rounded-2xl text-sm font-black hover:bg-red-100 transition-colors"><Trash2 size={18}/> Mülkü Sil</button>
              </div>
              
-             <div className="bg-white rounded-[3rem] p-8 lg:p-14 shadow-2xl border border-slate-100 space-y-20">
-                {/* Image & Danışman */}
+             <div className="bg-white rounded-[3rem] p-8 lg:p-14 shadow-2xl border border-slate-100 space-y-20 text-left">
+                {/* 1. Görsel & Danışman */}
                 <section className="space-y-10 text-left">
-                   <h3 className="text-2xl font-black border-b pb-4 flex items-center gap-4 text-[#001E3C] uppercase tracking-tighter"><Camera size={32} className="text-blue-500"/> Görsel ve Sorumlu</h3>
-                   <div className="flex flex-col md:flex-row gap-10 items-center">
-                      <div className="w-56 h-56 bg-slate-50 rounded-[3rem] overflow-hidden border-2 border-dashed border-slate-200 flex items-center justify-center relative group shrink-0 shadow-inner">
+                   <h3 className="text-2xl font-black border-b pb-4 flex items-center gap-4 text-[#001E3C] uppercase tracking-tighter text-left"><Camera size={32} className="text-blue-500"/> Görsel ve Sorumlu</h3>
+                   <div className="flex flex-col md:flex-row gap-10 items-center text-left">
+                      <div className="w-56 h-56 bg-slate-50 rounded-[3rem] overflow-hidden border-2 border-dashed border-slate-200 flex items-center justify-center relative group shrink-0 shadow-inner text-left">
                         {currentProperty.image ? (
                           <><img src={currentProperty.image} className="w-full h-full object-cover group-hover:opacity-40 transition-opacity" /><button onClick={() => fileInputRef.current?.click()} className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 text-[#001E3C] transition-all"><Camera size={40}/></button></>
                         ) : (
@@ -617,9 +617,9 @@ const App: React.FC = () => {
                    </div>
                 </section>
 
-                {/* Detaylar */}
+                {/* 2. Temel Detaylar */}
                 <section className="space-y-10 text-left">
-                   <h3 className="text-2xl font-black border-b pb-4 flex items-center gap-4 text-[#001E3C] uppercase tracking-tighter"><Home size={32} className="text-indigo-500"/> Mülk Bilgileri</h3>
+                   <h3 className="text-2xl font-black border-b pb-4 flex items-center gap-4 text-[#001E3C] uppercase tracking-tighter text-left"><Home size={32} className="text-indigo-500"/> Mülk Bilgileri</h3>
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
                       <AdminInput label="İlan Başlığı" value={currentProperty.title} onChange={(v:any) => updatePropertyData('title', v)} />
                       <AdminInput label="Bölge / Konum" value={currentProperty.location} onChange={(v:any) => updatePropertyData('location', v)} />
@@ -627,14 +627,14 @@ const App: React.FC = () => {
                       <AdminInput label="İlan Yayına Giriş" type="date" value={currentProperty.listingDate} onChange={(v:any) => updatePropertyData('listingDate', v)} />
                    </div>
                    <div className="space-y-2 text-left">
-                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1 block">Danışman Analizi</label>
-                     <textarea value={currentProperty.agentNotes} onChange={e => updatePropertyData('agentNotes', e.target.value)} placeholder="Mülk için stratejik görüşleriniz..." className="w-full p-6 bg-slate-50 border border-slate-200 rounded-[2.5rem] text-sm font-bold outline-none h-40 resize-none text-[#001E3C] focus:border-blue-500 transition-all shadow-inner"></textarea>
+                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1 block text-left">Danışman Analizi</label>
+                     <textarea value={currentProperty.agentNotes} onChange={e => updatePropertyData('agentNotes', e.target.value)} placeholder="Stratejik görüşleriniz..." className="w-full p-6 bg-slate-50 border border-slate-200 rounded-[2.5rem] text-sm font-bold outline-none h-40 resize-none text-[#001E3C] focus:border-blue-500 transition-all shadow-inner text-left"></textarea>
                    </div>
                 </section>
 
-                {/* Performans Verileri */}
+                {/* 3. Performans Verileri */}
                 <section className="space-y-10 text-left">
-                   <h3 className="text-2xl font-black border-b pb-4 flex items-center gap-4 text-[#001E3C] uppercase tracking-tighter"><Activity size={32} className="text-blue-500"/> İstatistik Girişi</h3>
+                   <h3 className="text-2xl font-black border-b pb-4 flex items-center gap-4 text-[#001E3C] uppercase tracking-tighter text-left"><Activity size={32} className="text-blue-500"/> İstatistik Girişi</h3>
                    <div className="overflow-x-auto text-left">
                       <table className="w-full text-left border-collapse min-w-[700px]">
                         <thead className="bg-slate-50 text-[10px] font-black text-slate-500 uppercase tracking-widest text-left">
@@ -655,12 +655,12 @@ const App: React.FC = () => {
                         </tbody>
                       </table>
                    </div>
-                   <button onClick={handleAddMonth} className="flex items-center gap-2 px-8 py-3 bg-[#001E3C] text-white rounded-2xl text-xs font-black uppercase shadow-lg"><Plus size={18}/> Yeni Dönem Ekle</button>
+                   <button onClick={handleAddMonth} className="flex items-center gap-2 px-8 py-3 bg-[#001E3C] text-white rounded-2xl text-xs font-black uppercase shadow-lg transition-all text-left"><Plus size={18}/> Yeni Dönem Ekle</button>
                 </section>
 
-                {/* Piyasa Analizi */}
+                {/* 4. Piyasa Konumlandırma */}
                 <section className="space-y-10 text-left">
-                   <h3 className="text-2xl font-black border-b pb-4 flex items-center gap-4 text-[#001E3C] uppercase tracking-tighter"><BarChart3 size={32} className="text-emerald-500"/> Piyasa Konumlandırma</h3>
+                   <h3 className="text-2xl font-black border-b pb-4 flex items-center gap-4 text-[#001E3C] uppercase tracking-tighter text-left"><BarChart3 size={32} className="text-emerald-500"/> Piyasa Konumlandırma</h3>
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
                       <AdminInput label="Binadaki Rakip İlan Sayısı" type="number" value={currentProperty.market?.buildingUnitsCount} onChange={(v:any) => updatePropertyData('market', {...currentProperty.market, buildingUnitsCount: v})} />
                       <AdminInput label="Mahalledeki Rakip İlan Sayısı" type="number" value={currentProperty.market?.neighborhoodUnitsCount} onChange={(v:any) => updatePropertyData('market', {...currentProperty.market, neighborhoodUnitsCount: v})} />
@@ -669,15 +669,15 @@ const App: React.FC = () => {
                    </div>
                 </section>
 
-                {/* Fiyat Geçmişi Management */}
+                {/* 5. Fiyat Geçmişi / Revizyonlar (RESTORED SECTION) */}
                 <section className="space-y-10 text-left">
-                   <h3 className="text-2xl font-black border-b pb-4 flex items-center gap-4 text-[#001E3C] uppercase tracking-tighter"><TrendingDown size={32} className="text-blue-500"/> Fiyat Geçmişi / Revizyonlar</h3>
+                   <h3 className="text-2xl font-black border-b pb-4 flex items-center gap-4 text-[#001E3C] uppercase tracking-tighter text-left"><TrendingDown size={32} className="text-blue-500"/> Fiyat Geçmişi / Revizyonlar</h3>
                    <div className="bg-slate-50 p-8 rounded-[2.5rem] space-y-6 text-left">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
                          <AdminInput label="Revizyon Tarihi" type="date" value={newPricePoint.date} onChange={(v:any) => setNewPricePoint({...newPricePoint, date: v})} />
                          <AdminInput label="Yeni Satış Fiyatı (₺)" type="number" value={newPricePoint.amount} onChange={(v:any) => setNewPricePoint({...newPricePoint, amount: v})} />
                       </div>
-                      <button onClick={handleAddPriceUpdate} className="w-full py-4 bg-[#001E3C] text-white rounded-2xl font-black text-xs uppercase shadow-xl hover:bg-slate-800">Fiyat Değişikliğini Kaydet</button>
+                      <button onClick={handleAddPriceUpdate} className="w-full py-4 bg-[#001E3C] text-white rounded-2xl font-black text-xs uppercase shadow-xl hover:bg-slate-800 transition-all text-left">Fiyat Değişikliğini Kaydet</button>
                    </div>
                    <div className="space-y-4 text-left">
                       {(currentProperty.priceHistory || []).map((p, idx) => (
@@ -686,50 +686,48 @@ const App: React.FC = () => {
                               <History size={24} className="text-slate-300"/>
                               <div className="text-left"><p className="font-black text-xl text-[#001E3C]">₺{p.amount.toLocaleString()}</p><p className="text-xs font-bold text-slate-400 uppercase">{p.date}</p></div>
                            </div>
-                           <button onClick={() => handleDeletePricePoint(idx)} className="p-3 text-red-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={24}/></button>
+                           <button onClick={() => handleDeletePricePoint(idx)} className="p-3 text-red-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all text-left"><Trash2 size={24}/></button>
                         </div>
                       ))}
                    </div>
                 </section>
 
-                {/* Teklif ve İşlem Yönetimi */}
+                {/* 6. Teklif ve İşlem Yönetimi */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 text-left">
-                   {/* İşlemler */}
                    <section className="space-y-10 text-left">
-                      <h3 className="text-xl font-black border-b pb-4 flex items-center gap-4 text-[#001E3C] uppercase tracking-tighter"><ClipboardCheck size={24} className="text-blue-500"/> Yapılan İşlemler</h3>
+                      <h3 className="text-xl font-black border-b pb-4 flex items-center gap-4 text-[#001E3C] uppercase tracking-tighter text-left"><ClipboardCheck size={24} className="text-blue-500"/> Yapılan İşlemler</h3>
                       <div className="bg-slate-50 p-6 rounded-3xl space-y-4 text-left">
                          <AdminInput label="Başlık" value={newActivity.title} onChange={(v:any) => setNewActivity({...newActivity, title: v})} />
                          <AdminInput label="Açıklama" value={newActivity.description} onChange={(v:any) => setNewActivity({...newActivity, description: v})} />
-                         <button onClick={handleAddActivity} className="w-full py-3 bg-[#001E3C] text-white rounded-xl font-black text-xs uppercase">Ekle</button>
+                         <button onClick={handleAddActivity} className="w-full py-3 bg-[#001E3C] text-white rounded-xl font-black text-xs uppercase shadow-md transition-all text-left">Günlüğe Ekle</button>
                       </div>
                       <div className="space-y-2 text-left">
                          {currentProperty.activities?.map(act => (
-                           <div key={act.id} className="p-4 bg-white border rounded-2xl flex justify-between items-center group shadow-sm">
+                           <div key={act.id} className="p-4 bg-white border rounded-2xl flex justify-between items-center group shadow-sm text-left">
                               <div className="text-left"><p className="font-bold text-sm text-[#001E3C] uppercase tracking-tight">{act.title}</p><p className="text-[10px] text-slate-400 font-bold">{act.date}</p></div>
-                              <button onClick={() => handleDeleteActivity(act.id)} className="text-red-200 group-hover:text-red-500 transition-colors"><X size={16}/></button>
+                              <button onClick={() => handleDeleteActivity(act.id)} className="text-red-200 group-hover:text-red-500 transition-colors text-left"><Trash2 size={16}/></button>
                            </div>
                          ))}
                       </div>
                    </section>
 
-                   {/* Teklifler */}
                    <section className="space-y-10 text-left">
-                      <h3 className="text-xl font-black border-b pb-4 flex items-center gap-4 text-[#001E3C] uppercase tracking-tighter"><Wallet size={24} className="text-emerald-500"/> Gelen Teklifler</h3>
+                      <h3 className="text-xl font-black border-b pb-4 flex items-center gap-4 text-[#001E3C] uppercase tracking-tighter text-left"><Wallet size={24} className="text-emerald-500"/> Teklif Yönetimi</h3>
                       <div className="bg-slate-50 p-6 rounded-3xl space-y-4 text-left">
                          <AdminInput label="Teklif Sahibi" value={newOffer.bidder} onChange={(v:any) => setNewOffer({...newOffer, bidder: v})} />
                          <AdminInput label="Tutar (₺)" type="number" value={newOffer.amount} onChange={(v:any) => setNewOffer({...newOffer, amount: v})} />
-                         <button onClick={handleAddOffer} className="w-full py-3 bg-[#001E3C] text-white rounded-xl font-black text-xs uppercase">Ekle</button>
+                         <button onClick={handleAddOffer} className="w-full py-3 bg-[#001E3C] text-white rounded-xl font-black text-xs uppercase shadow-md transition-all text-left">Sisteme İşle</button>
                       </div>
-                      <div className="space-y-2 text-left">
+                      <div className="space-y-3 text-left">
                          {currentProperty.offers?.map(offer => (
-                           <div key={offer.id} className="p-4 bg-white border rounded-2xl flex flex-col gap-2 shadow-sm text-left">
+                           <div key={offer.id} className="p-4 bg-white border rounded-2xl flex flex-col gap-3 shadow-sm text-left">
                               <div className="flex justify-between items-center text-left">
-                                 <div><p className="font-black text-lg text-[#001E3C]">₺{offer.amount.toLocaleString()}</p><p className="text-[10px] font-bold text-slate-400 uppercase">{offer.bidder}</p></div>
-                                 <button onClick={() => handleDeleteOffer(offer.id)} className="text-red-200 hover:text-red-500"><Trash2 size={16}/></button>
+                                 <div className="text-left"><p className="font-black text-lg text-[#001E3C]">₺{offer.amount.toLocaleString()}</p><p className="text-[10px] font-bold text-slate-400 uppercase">{offer.bidder}</p></div>
+                                 <button onClick={() => handleDeleteOffer(offer.id)} className="text-red-200 hover:text-red-500 text-left"><Trash2 size={18}/></button>
                               </div>
                               <div className="flex gap-1 text-left">
                                  {['Beklemede', 'Kabul Edildi', 'Reddedildi'].map((st:any) => (
-                                   <button key={st} onClick={() => handleUpdateOfferStatus(offer.id, st)} className={`flex-1 py-1 rounded text-[8px] font-black uppercase tracking-widest border transition-all ${offer.status === st ? 'bg-[#001E3C] text-white border-[#001E3C]' : 'bg-slate-50 text-slate-400 border-slate-100'}`}>{st}</button>
+                                   <button key={st} onClick={() => handleUpdateOfferStatus(offer.id, st)} className={`flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest border transition-all ${offer.status === st ? 'bg-[#001E3C] text-white border-[#001E3C]' : 'bg-slate-50 text-slate-400 border-slate-100'}`}>{st}</button>
                                  ))}
                               </div>
                            </div>
@@ -738,111 +736,103 @@ const App: React.FC = () => {
                    </section>
                 </div>
 
-                <div className="pt-10"><button onClick={() => { setActiveTab('dashboard'); window.scrollTo(0,0); }} className="w-full py-10 bg-[#001E3C] text-white rounded-[3rem] font-black text-2xl shadow-2xl transition-all uppercase tracking-widest hover:bg-slate-800">KAYDET VE RAPORU GÜNCELLE</button></div>
+                <div className="pt-10 text-left"><button onClick={() => { setActiveTab('dashboard'); window.scrollTo(0,0); }} className="w-full py-10 bg-[#001E3C] text-white rounded-[3rem] font-black text-2xl shadow-2xl transition-all uppercase tracking-widest hover:bg-slate-800 text-left">DEĞİŞİKLİKLERİ KAYDET VE ÖNİZLE</button></div>
              </div>
           </div>
         )}
 
-        {/* CLIENT DASHBOARD - ENHANCED VISUALS */}
+        {/* CLIENT DASHBOARD */}
         {activeTab === 'dashboard' && currentProperty && (
           <div className="max-w-6xl mx-auto space-y-16 animate-in fade-in duration-700 pb-20 text-left">
-             {/* HEADER */}
+             {/* Header */}
              <div className="flex flex-col lg:flex-row justify-between items-start gap-10 text-left">
                 <div className="space-y-4 text-left">
-                   <div className="flex items-center gap-3"><span className="px-4 py-1.5 bg-[#001E3C] text-white text-[11px] font-black rounded-full uppercase tracking-widest">{currentProperty.id}</span><span className="text-[11px] font-black text-slate-500 uppercase tracking-widest bg-slate-100 px-4 py-1.5 rounded-full">{calculateDaysOnMarket(currentProperty.listingDate)} GÜN AKTİF</span></div>
+                   <div className="flex items-center gap-3 text-left"><span className="px-4 py-1.5 bg-[#001E3C] text-white text-[11px] font-black rounded-full uppercase tracking-widest">{currentProperty.id}</span><span className="text-[11px] font-black text-slate-500 uppercase tracking-widest bg-slate-100 px-4 py-1.5 rounded-full">{calculateDaysOnMarket(currentProperty.listingDate)} GÜN AKTİF</span></div>
                    <h2 className="text-4xl lg:text-7xl font-black tracking-tight leading-none text-[#001E3C] uppercase text-left">{currentProperty.title}</h2>
-                   <p className="flex items-center gap-3 text-slate-500 font-bold text-xl lg:text-3xl text-left uppercase"><MapPin size={32} className="text-red-500"/> {currentProperty.location}</p>
+                   <p className="flex items-center gap-3 text-slate-500 font-bold text-xl lg:text-3xl text-left uppercase text-left"><MapPin size={32} className="text-red-500"/> {currentProperty.location}</p>
                 </div>
-                <button onClick={handleGenerateAISummary} disabled={isGenerating} className="px-14 py-8 bg-[#001E3C] text-white rounded-[2.5rem] font-black shadow-2xl flex items-center justify-center gap-5 active:scale-95 transition-all uppercase tracking-widest text-lg">
+                <button onClick={handleGenerateAISummary} disabled={isGenerating} className="px-14 py-8 bg-[#001E3C] text-white rounded-[2.5rem] font-black shadow-2xl flex items-center justify-center gap-5 active:scale-95 transition-all uppercase tracking-widest text-lg text-left">
                   {isGenerating ? <Loader2 size={32} className="animate-spin text-white"/> : <Sparkles size={32} className="text-amber-300"/>} STRATEJİK ANALİZ
                 </button>
              </div>
 
-             {/* STATS OVERVIEW - BEAUTIFUL CARDS */}
+             {/* Stat Cards Top */}
              <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 text-left">
-                <DashboardStat label="Toplam Görüntülenme" value={statsTotals.views.toLocaleString()} icon={<Eye size={32}/>} color="blue" />
+                <DashboardStat label="Görüntülenme" value={statsTotals.views.toLocaleString()} icon={<Eye size={32}/>} color="blue" />
                 <DashboardStat label="Favoriye Ekleme" value={statsTotals.favs.toLocaleString()} icon={<Heart size={32}/>} color="red" />
                 <DashboardStat label="Gelen Mesajlar" value={statsTotals.msgs.toLocaleString()} icon={<MessageSquare size={32}/>} color="emerald" />
                 <DashboardStat label="Telefonla Arama" value={statsTotals.calls.toLocaleString()} icon={<Phone size={32}/>} color="indigo" />
              </div>
 
-             {/* MARKET POSITIONS */}
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-left">
-                <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl flex items-center gap-5 group hover:shadow-2xl transition-all text-left">
-                   <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform"><Building size={32}/></div>
-                   <div className="text-left"><p className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Binada Rakip</p><h4 className="text-2xl font-black text-[#001E3C] block">{currentProperty.market?.buildingUnitsCount || 0} İlan</h4></div>
-                </div>
-                <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl flex items-center gap-5 group hover:shadow-xl transition-all text-left">
-                   <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform"><MapIcon size={32}/></div>
-                   <div className="text-left"><p className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Mahalle Rakip</p><h4 className="text-2xl font-black text-[#001E3C] block">{currentProperty.market?.neighborhoodUnitsCount || 0} İlan</h4></div>
-                </div>
-                <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl flex items-center gap-5 group hover:shadow-xl transition-all text-left">
-                   <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform"><Coins size={32}/></div>
-                   <div className="text-left"><p className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Emsal Değeri</p><h4 className="text-2xl font-black text-[#001E3C] block">₺{currentProperty.market?.comparablePrice?.toLocaleString() || '-'}</h4></div>
-                </div>
-                <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl flex items-center gap-5 group hover:shadow-xl transition-all text-left">
-                   <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform"><Clock size={32}/></div>
-                   <div className="text-left"><p className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Ort. Satış Süresi</p><h4 className="text-2xl font-black text-[#001E3C] block">{currentProperty.market?.avgSaleDurationDays || '-'} Gün</h4></div>
-                </div>
-             </div>
-
-             {/* PERFORMANCE TABLE - BEAUTIFUL BREAKDOWN */}
-             <div className="bg-white p-10 lg:p-14 rounded-[3rem] shadow-2xl border border-slate-50 space-y-10 text-left">
-                <div className="flex items-center gap-4 border-l-8 border-[#001E3C] pl-6 text-left"><h3 className="text-3xl lg:text-4xl font-black uppercase tracking-tighter text-[#001E3C]">Aylık Performans Detayları</h3></div>
-                <div className="overflow-x-auto text-left">
-                  <table className="w-full text-left border-collapse min-w-[800px] text-left">
-                    <thead className="bg-slate-50 text-[11px] font-black text-[#001E3C] uppercase tracking-widest text-left">
-                      <tr><th className="px-8 py-6">AYLIK DÖNEM</th><th className="px-8 py-6">GÖRÜNTÜLENME</th><th className="px-8 py-6">FAVORİ</th><th className="px-8 py-6">MESAJ</th><th className="px-8 py-6">ARAMA</th><th className="px-8 py-6">GEZME (ZİYARET)</th></tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 text-left">
-                      {(currentProperty.stats || []).map((s, idx) => (
-                        <tr key={idx} className="hover:bg-slate-50/50 transition-colors text-left">
-                          <td className="px-8 py-6 font-black text-[#001E3C] uppercase text-lg">{s.month}</td>
-                          <td className="px-8 py-6 font-black text-blue-700 text-xl">{s.views?.toLocaleString() || 0}</td>
-                          <td className="px-8 py-6 font-black text-red-700 text-xl">{s.favorites?.toLocaleString() || 0}</td>
-                          <td className="px-8 py-6 font-black text-emerald-700 text-xl">{s.messages?.toLocaleString() || 0}</td>
-                          <td className="px-8 py-6 font-black text-indigo-700 text-xl">{s.calls?.toLocaleString() || 0}</td>
-                          <td className="px-8 py-6 font-black text-amber-700 text-xl">{s.visits?.toLocaleString() || 0}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+             {/* MONTHLY PERFORMANCE CARDS */}
+             <div className="space-y-10 text-left">
+                <div className="flex items-center gap-4 border-l-8 border-[#001E3C] pl-6 text-left"><h3 className="text-3xl lg:text-4xl font-black uppercase tracking-tighter text-[#001E3C] text-left">Aylık Performans Özeti</h3></div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 text-left">
+                   {(currentProperty.stats || []).map((s, idx) => (
+                     <div key={idx} className="bg-white rounded-[2.5rem] overflow-hidden border border-slate-100 shadow-xl hover:shadow-2xl transition-all group text-left">
+                        <div className="bg-[#001E3C] p-5 text-white flex justify-between items-center text-left">
+                           <h4 className="font-black uppercase tracking-widest text-white">{s.month}</h4>
+                           <Activity size={20} className="text-blue-400 opacity-50"/>
+                        </div>
+                        <div className="p-8 space-y-6 text-left">
+                           <div className="flex justify-between items-center border-b border-slate-50 pb-3 text-left">
+                              <div className="flex items-center gap-3 text-left text-blue-600"><Eye size={20}/><span className="text-[10px] font-black uppercase text-slate-400">İzlenme</span></div>
+                              <span className="font-black text-xl text-[#001E3C]">{s.views?.toLocaleString()}</span>
+                           </div>
+                           <div className="flex justify-between items-center border-b border-slate-50 pb-3 text-left">
+                              <div className="flex items-center gap-3 text-left text-red-600"><Heart size={20}/><span className="text-[10px] font-black uppercase text-slate-400">Favori</span></div>
+                              <span className="font-black text-xl text-[#001E3C]">{s.favorites?.toLocaleString()}</span>
+                           </div>
+                           <div className="flex justify-between items-center border-b border-slate-50 pb-3 text-left">
+                              <div className="flex items-center gap-3 text-left text-emerald-600"><MessageSquare size={20}/><span className="text-[10px] font-black uppercase text-slate-400">Mesaj</span></div>
+                              <span className="font-black text-xl text-[#001E3C]">{s.messages?.toLocaleString()}</span>
+                           </div>
+                           <div className="flex justify-between items-center border-b border-slate-50 pb-3 text-left">
+                              <div className="flex items-center gap-3 text-left text-indigo-600"><Phone size={20}/><span className="text-[10px] font-black uppercase text-slate-400">Arama</span></div>
+                              <span className="font-black text-xl text-[#001E3C]">{s.calls?.toLocaleString()}</span>
+                           </div>
+                           <div className="flex justify-between items-center text-left">
+                              <div className="flex items-center gap-3 text-left text-amber-600"><MapPin size={20}/><span className="text-[10px] font-black uppercase text-slate-400">Ziyaret</span></div>
+                              <span className="font-black text-xl text-[#001E3C]">{s.visits?.toLocaleString()}</span>
+                           </div>
+                        </div>
+                     </div>
+                   ))}
                 </div>
              </div>
 
-             {/* PRICE JOURNEY - RESTORED HISTORY */}
+             {/* Fiyat Geçmişi */}
              <div className="bg-white p-10 lg:p-14 rounded-[3rem] shadow-2xl border border-slate-50 space-y-10 text-left">
-                <div className="flex items-center gap-4 border-l-8 border-[#001E3C] pl-6 text-left"><h3 className="text-3xl lg:text-4xl font-black uppercase tracking-tighter text-[#001E3C]">Fiyat Yolculuğu ve Revizyonlar</h3></div>
+                <div className="flex items-center gap-4 border-l-8 border-[#001E3C] pl-6 text-left"><h3 className="text-3xl lg:text-4xl font-black uppercase tracking-tighter text-[#001E3C] text-left">Fiyat Değişim Yolculuğu</h3></div>
                 <div className="flex flex-col sm:flex-row items-end justify-between gap-6 text-left">
-                    <div className="text-left"><p className="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-1 block">GÜNCEL LİSTE FİYATI</p><h4 className="text-4xl lg:text-7xl font-black text-[#001E3C] block tracking-tighter">₺{currentProperty.currentPrice.toLocaleString()}</h4></div>
-                    <div className="text-emerald-700 bg-emerald-50 px-6 py-3 rounded-full font-black text-sm uppercase tracking-widest flex items-center gap-2 border border-emerald-100 shadow-sm"><Tag size={20}/> SATIŞ SÜRECİNDE</div>
+                    <div className="text-left"><p className="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-1 block text-left">GÜNCEL LİSTE FİYATI</p><h4 className="text-4xl lg:text-7xl font-black text-[#001E3C] block tracking-tighter text-left">₺{currentProperty.currentPrice.toLocaleString()}</h4></div>
+                    <div className="text-emerald-700 bg-emerald-50 px-6 py-3 rounded-full font-black text-sm uppercase tracking-widest flex items-center gap-2 border border-emerald-100 shadow-sm text-left"><Tag size={20}/> AKTİF SATIŞTA</div>
                 </div>
                 <div className="space-y-4 text-left">
                   {(currentProperty.priceHistory || []).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((p, idx) => (
                     <div key={idx} className="flex justify-between items-center p-6 bg-slate-50 rounded-[2rem] border border-slate-100 transition-all hover:bg-white text-left">
                        <div className="flex items-center gap-6 text-[#001E3C] text-left">
                           <History size={28} className="text-slate-400"/>
-                          <div className="text-left"><p className="font-black text-[#001E3C] text-2xl block">₺{p.amount.toLocaleString()}</p><p className="text-xs font-bold text-slate-500 uppercase tracking-widest block">{p.date}</p></div>
+                          <div className="text-left text-left"><p className="font-black text-[#001E3C] text-2xl block text-left">₺{p.amount.toLocaleString()}</p><p className="text-xs font-bold text-slate-500 uppercase tracking-widest text-left">{p.date}</p></div>
                        </div>
-                       {idx === 0 && <span className="text-[10px] font-black uppercase bg-[#001E3C] text-white px-3 py-1.5 rounded-full">EN GÜNCEL</span>}
                     </div>
                   ))}
                 </div>
              </div>
 
-             {/* OFFERS & ADVICE - ENHANCED STATUS VIEW */}
+             {/* Teklifler & Danışman Görüşü */}
              <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 text-left">
                 <div className="bg-white p-10 lg:p-14 rounded-[3rem] border border-slate-50 shadow-2xl space-y-10 text-left">
-                   <div className="flex items-center gap-5 border-b pb-8 text-[#001E3C] text-left"><Wallet size={48} className="text-emerald-500"/><h4 className="text-2xl lg:text-3xl font-black uppercase tracking-tighter text-[#001E3C]">Resmi Alınan Teklifler</h4></div>
+                   <div className="flex items-center gap-5 border-b pb-8 text-[#001E3C] text-left"><Wallet size={48} className="text-emerald-500"/><h4 className="text-2xl lg:text-3xl font-black uppercase tracking-tighter text-[#001E3C] text-left">Resmi Teklifler</h4></div>
                    <div className="space-y-5 max-h-[450px] overflow-y-auto pr-4 scrollbar-thin text-left">
                       {(!currentProperty.offers || currentProperty.offers.length === 0) ? (
                         <div className="py-24 text-center text-slate-300 font-black italic text-xl">Henüz bir teklif kaydı bulunmuyor.</div>
                       ) : (
                         currentProperty.offers.map(offer => (
                           <div key={offer.id} className="flex items-center justify-between p-8 bg-slate-50 rounded-[2.5rem] border border-slate-100 transition-all hover:bg-white text-left block">
-                            <div className="flex items-center gap-5 text-left">
+                            <div className="flex items-center gap-5 text-left text-left">
                               <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-2xl shadow-inner ${offer.status === 'Reddedildi' ? 'bg-red-50 text-red-400' : offer.status === 'Kabul Edildi' ? 'bg-emerald-50 text-emerald-600' : 'bg-white text-[#001E3C]'}`}>{offer.bidder.charAt(0)}</div>
-                              <div className="text-left"><p className="font-black text-xl text-[#001E3C] uppercase">{offer.bidder.substring(0,2)}***</p><p className={`text-[10px] font-black uppercase tracking-widest ${offer.status === 'Kabul Edildi' ? 'text-emerald-500' : offer.status === 'Reddedildi' ? 'text-red-400' : 'text-slate-400'}`}>{offer.status} • {offer.date}</p></div>
+                              <div className="text-left text-left text-left"><p className="font-black text-xl text-[#001E3C] uppercase text-left">{offer.bidder.substring(0,2)}***</p><p className={`text-[10px] font-black uppercase tracking-widest ${offer.status === 'Kabul Edildi' ? 'text-emerald-500' : offer.status === 'Reddedildi' ? 'text-red-400' : 'text-slate-400'}`}>{offer.status} • {offer.date}</p></div>
                             </div>
                             <p className={`font-black text-2xl tracking-tighter ${offer.status === 'Reddedildi' ? 'text-red-300 line-through' : 'text-[#001E3C]'}`}>₺{offer.amount.toLocaleString()}</p>
                           </div>
@@ -853,36 +843,36 @@ const App: React.FC = () => {
 
                 <div className="bg-[#001E3C] p-12 lg:p-16 rounded-[4rem] text-white flex flex-col justify-between shadow-2xl relative overflow-hidden group text-left">
                    <div className="absolute -top-10 -right-10 p-10 opacity-5 group-hover:scale-110 transition-transform"><Award size={350}/></div>
-                   <div className="space-y-12 relative z-10 text-white text-left">
-                     <div className="flex items-center gap-5 text-white text-left"><MessageCircle size={56} className="text-blue-400"/><h4 className="text-2xl lg:text-4xl font-black uppercase tracking-tighter text-white">Danışman Görüşü</h4></div>
-                     <p className="text-2xl lg:text-4xl font-medium italic text-white/90 leading-relaxed text-left text-white">"{currentProperty.agentNotes || 'Mülkünüzün satış süreci uzman ekibimiz tarafından titizlikle yönetilmektedir.'}"</p>
+                   <div className="space-y-12 relative z-10 text-white text-left text-left">
+                     <div className="flex items-center gap-5 text-white text-left text-left"><MessageCircle size={56} className="text-blue-400"/><h4 className="text-2xl lg:text-4xl font-black uppercase tracking-tighter text-white text-left">Danışman Görüşü</h4></div>
+                     <p className="text-2xl lg:text-4xl font-medium italic text-white/90 leading-relaxed text-left text-white text-left">"{currentProperty.agentNotes || 'Mülkünüzün satış süreci uzman ekibimiz tarafından titizlikle yönetilmektedir.'}"</p>
                    </div>
-                   <div className="mt-16 pt-12 border-t border-white/20 flex items-center justify-between relative z-10 text-white text-left">
-                     <div className="flex items-center gap-8 text-white text-left">
+                   <div className="mt-16 pt-12 border-t border-white/20 flex items-center justify-between relative z-10 text-white text-left text-left">
+                     <div className="flex items-center gap-8 text-white text-left text-left text-left">
                        <div className="w-20 h-20 lg:w-24 lg:h-24 bg-white/10 rounded-3xl flex items-center justify-center text-blue-300 shadow-inner"><UserCheck size={48}/></div>
-                       <div className="text-white text-left"><p className="text-[11px] font-black text-white/50 uppercase tracking-widest mb-1 text-white text-left">SORUMLU DANIŞMAN</p><p className="text-2xl lg:text-3xl font-black text-white uppercase text-left">{currentProperty.agentName || 'Can West'}</p></div>
+                       <div className="text-white text-left text-left"><p className="text-[11px] font-black text-white/50 uppercase tracking-widest mb-1 text-white text-left text-left">SORUMLU DANIŞMAN</p><p className="text-2xl lg:text-3xl font-black text-white uppercase text-left text-left">{currentProperty.agentName || 'Can West'}</p></div>
                      </div>
-                     {currentProperty.agentPhone && <a href={`tel:${currentProperty.agentPhone}`} className="w-20 h-20 lg:w-24 lg:h-24 bg-blue-500 text-white rounded-[2rem] flex items-center justify-center shadow-2xl active:scale-90 transition-all hover:bg-blue-600"><Phone size={40}/></a>}
+                     {currentProperty.agentPhone && <a href={`tel:${currentProperty.agentPhone}`} className="w-20 h-20 lg:w-24 lg:h-24 bg-blue-500 text-white rounded-[2rem] flex items-center justify-center shadow-2xl active:scale-90 transition-all hover:bg-blue-600 text-left"><Phone size={40}/></a>}
                    </div>
                 </div>
              </div>
 
-             {/* ACTIVITIES TIMELINE */}
+             {/* Activities Timeline */}
              <div className="space-y-10 text-left">
-                <div className="flex items-center gap-4 border-l-8 border-[#001E3C] pl-6 text-left"><h3 className="text-3xl lg:text-4xl font-black uppercase tracking-tighter text-[#001E3C]">Yapılan İşlemler (Timeline)</h3></div>
+                <div className="flex items-center gap-4 border-l-8 border-[#001E3C] pl-6 text-left"><h3 className="text-3xl lg:text-4xl font-black uppercase tracking-tighter text-[#001E3C] text-left">Süreç ve Aksiyonlar</h3></div>
                 <div className="relative space-y-8 before:absolute before:inset-0 before:ml-5 before:h-full before:w-0.5 before:bg-slate-200 lg:before:ml-8 text-left">
                    {(!currentProperty.activities || currentProperty.activities.length === 0) ? (
-                     <div className="bg-white p-12 rounded-[2.5rem] border text-center text-slate-400 font-bold italic">İşlem günlüğü çok yakında güncellenecektir.</div>
+                     <div className="bg-white p-12 rounded-[2.5rem] border text-center text-slate-400 font-bold italic">İşlem günlüğü yakında güncellenecektir.</div>
                    ) : (
                      currentProperty.activities.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((act) => (
                        <div key={act.id} className="relative flex items-start gap-8 lg:gap-12 animate-in slide-in-from-left-5 text-left">
-                          <div className="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#001E3C] text-white shadow-xl lg:h-16 lg:w-16 ring-8 ring-[#F8FAFC]"><ClipboardCheck size={28} /></div>
-                          <div className="flex-1 bg-white p-6 lg:p-10 rounded-[2rem] border border-slate-100 shadow-xl text-left">
-                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 text-left">
-                                <h4 className="text-lg lg:text-2xl font-black uppercase text-[#001E3C]">{act.title}</h4>
-                                <span className="px-4 py-1.5 bg-blue-50 text-[#001E3C] rounded-full text-[10px] font-black uppercase tracking-widest">{act.date}</span>
+                          <div className="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#001E3C] text-white shadow-xl lg:h-16 lg:w-16 ring-8 ring-[#F8FAFC] text-left text-left"><ClipboardCheck size={28} /></div>
+                          <div className="flex-1 bg-white p-6 lg:p-10 rounded-[2rem] border border-slate-100 shadow-xl text-left text-left">
+                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 text-left text-left">
+                                <h4 className="text-lg lg:text-2xl font-black uppercase text-[#001E3C] text-left text-left">{act.title}</h4>
+                                <span className="px-4 py-1.5 bg-blue-50 text-[#001E3C] rounded-full text-[10px] font-black uppercase tracking-widest text-left text-left">{act.date}</span>
                              </div>
-                             <p className="text-slate-500 font-bold leading-relaxed italic text-sm lg:text-lg text-left">"{act.description}"</p>
+                             <p className="text-slate-500 font-bold leading-relaxed italic text-sm lg:text-lg text-left text-left">"{act.description}"</p>
                           </div>
                        </div>
                      ))
@@ -890,13 +880,23 @@ const App: React.FC = () => {
                 </div>
              </div>
 
+             {/* Feedback Form */}
+             <div className="bg-white p-10 lg:p-16 rounded-[3rem] lg:rounded-[4rem] shadow-2xl border border-slate-50 space-y-12 animate-in slide-in-from-bottom-5 text-left text-[#001E3C] text-left">
+                <div className="flex items-center gap-5 border-b pb-8 text-[#001E3C] text-left text-left text-left"><MessageSquare size={48} className="text-blue-500"/><h4 className="text-2xl lg:text-4xl font-black uppercase text-[#001E3C] tracking-tighter text-left text-left text-left">Talep / Not İlet</h4></div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 text-left text-[#001E3C] text-left text-left">
+                  <div className="space-y-4 text-left text-left text-left"><label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-2 block text-left text-left text-left text-left">Mesajınız</label><textarea value={clientFeedbackInput} onChange={(e) => setClientFeedbackInput(e.target.value)} className="w-full p-8 bg-slate-50 border rounded-[2.5rem] text-lg font-bold outline-none h-48 resize-none focus:border-[#001E3C] shadow-inner text-[#001E3C] text-left" placeholder="Stratejik görüşlerinizi buraya yazın..."></textarea></div>
+                  <div className="space-y-4 text-left text-left text-left"><label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-2 block text-left text-left text-left text-left">Fiyat Revizyon Talebi (₺)</label><input type="text" value={clientRequestedPrice} onChange={(e) => setClientRequestedPrice(e.target.value.replace(/[^0-9]/g, ''))} placeholder="Örn: 18.000.000" className="w-full p-8 bg-slate-50 border rounded-[2.5rem] text-lg font-bold outline-none focus:border-[#001E3C] shadow-inner text-[#001E3C] text-left" /><div className="bg-blue-50 p-6 rounded-3xl text-sm font-bold text-blue-800 leading-relaxed border border-blue-100 mt-4 text-left text-left">Görüşleriniz anında sorumlu danışmanımıza ve yönetici panelimize iletilecektir.</div></div>
+                </div>
+                <button onClick={handleSendFeedback} className="w-full py-7 bg-[#001E3C] text-white rounded-[2.5rem] font-black text-xl uppercase shadow-2xl hover:bg-slate-800 flex items-center justify-center gap-3 transition-all text-left"><Send size={24}/> TALEBİ GÖNDER</button>
+             </div>
+
              {/* AI ANALYSIS DISPLAY */}
              {aiSummary && (
-               <div className="bg-white p-12 lg:p-20 rounded-[4rem] lg:rounded-[6rem] shadow-2xl border border-blue-100 relative overflow-hidden text-left animate-in zoom-in duration-500 text-[#001E3C]">
-                  <div className="absolute top-0 right-0 p-12 opacity-5"><Sparkles size={200} className="text-amber-500"/></div>
-                  <div className="relative z-10 space-y-12 text-left">
-                    <h4 className="text-3xl lg:text-5xl font-black text-[#001E3C] flex items-center gap-5 uppercase tracking-tighter"><Sparkles size={64} className="text-amber-500"/> Yapay Zeka Stratejik Analiz</h4>
-                    <div className="prose max-w-none text-[#001E3C] leading-relaxed font-bold text-xl lg:text-3xl italic whitespace-pre-line border-l-[12px] border-amber-400 pl-12 py-6 text-left">"{aiSummary}"</div>
+               <div className="bg-white p-12 lg:p-20 rounded-[4rem] lg:rounded-[6rem] shadow-2xl border border-blue-100 relative overflow-hidden text-left animate-in zoom-in duration-500 text-[#001E3C] text-left">
+                  <div className="absolute top-0 right-0 p-12 opacity-5 text-left"><Sparkles size={200} className="text-amber-500"/></div>
+                  <div className="relative z-10 space-y-12 text-left text-left">
+                    <h4 className="text-3xl lg:text-5xl font-black text-[#001E3C] flex items-center gap-5 uppercase tracking-tighter text-left text-left text-left"><Sparkles size={64} className="text-amber-500"/> Yapay Zeka Stratejik Analiz</h4>
+                    <div className="prose max-w-none text-[#001E3C] leading-relaxed font-bold text-xl lg:text-3xl italic whitespace-pre-line border-l-[12px] border-amber-400 pl-12 py-6 text-left text-left">"{aiSummary}"</div>
                   </div>
                </div>
              )}
@@ -909,7 +909,7 @@ const App: React.FC = () => {
         <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-[#001E3C] border-t border-white/10 px-4 py-5 flex justify-around items-center z-[100] safe-bottom shadow-2xl">
            <MobileNavItem icon={<Home size={24}/>} label="Portföy" active={activeTab === 'propertyList'} onClick={() => setActiveTab('propertyList')} />
            <MobileNavItem icon={<Bell size={24}/>} label="Talepler" active={activeTab === 'notifications'} onClick={() => setActiveTab('notifications')} />
-           <MobileNavItem icon={<Users size={24}/>} label="Müşteri" active={activeTab === 'customers'} onClick={() => setActiveTab('customers')} />
+           <MobileNavItem icon={<Users size={24}/>} label="CRM" active={activeTab === 'customers'} onClick={() => setActiveTab('customers')} />
            <MobileNavItem icon={<CalendarIcon size={24}/>} label="Takvim" active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} />
         </nav>
       )}
@@ -922,7 +922,7 @@ const App: React.FC = () => {
             <form onSubmit={handleLogin} className="space-y-8">
               <input type="password" autoFocus placeholder="PIN" value={passwordInput} onChange={e => setPasswordInput(e.target.value)} className="w-full p-6 bg-slate-50 border-2 rounded-[2.5rem] outline-none text-center text-5xl font-black tracking-widest text-[#001E3C] focus:border-[#001E3C] transition-all" />
               <button type="submit" className="w-full py-6 bg-[#001E3C] text-white rounded-[2.5rem] font-black text-2xl shadow-2xl hover:bg-slate-800 transition-all uppercase tracking-widest">GİRİŞ YAP</button>
-              <button type="button" onClick={() => setShowLoginModal(false)} className="mt-8 text-slate-400 font-bold text-sm uppercase tracking-widest block mx-auto">Vazgeç</button>
+              <button type="button" onClick={() => setShowLoginModal(false)} className="mt-8 text-slate-400 font-bold text-sm uppercase tracking-widest block mx-auto transition-colors">Vazgeç</button>
             </form>
           </div>
         </div>
@@ -938,7 +938,7 @@ const DashboardStat = ({ label, value, icon, color }: any) => {
   return (
     <div className="bg-white p-8 lg:p-10 rounded-[2.5rem] lg:rounded-[3rem] border border-slate-100 shadow-xl space-y-5 hover:shadow-2xl transition-all h-full text-left">
        <div className={`w-16 h-16 lg:w-20 lg:h-20 rounded-2xl lg:rounded-3xl flex items-center justify-center ${styles[color]}`}>{icon}</div>
-       <div className="text-left"><p className="text-[10px] lg:text-[11px] font-black text-slate-500 uppercase tracking-widest block mb-1">{label}</p><h4 className="text-2xl lg:text-4xl font-black tracking-tighter text-[#001E3C] block">{value}</h4></div>
+       <div className="text-left"><p className="text-[10px] lg:text-[11px] font-black text-slate-500 uppercase tracking-widest block mb-1 text-left">{label}</p><h4 className="text-2xl lg:text-4xl font-black tracking-tighter text-[#001E3C] block text-left">{value}</h4></div>
     </div>
   );
 };
@@ -957,12 +957,12 @@ const MobileNavItem = ({ icon, label, active, onClick }: any) => (
 );
 
 const AdminInput = ({ label, value, onChange, type = "text", placeholder = "" }: any) => (
-  <div className="space-y-2 w-full text-left block text-[#001E3C]">
-    <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider ml-1 block">{label}</label>
+  <div className="space-y-2 w-full text-left block text-[#001E3C] text-left">
+    <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider ml-1 block text-left text-left">{label}</label>
     <input type={type === 'number' ? 'text' : type} value={value ?? ''} placeholder={placeholder} onChange={(e) => {
       const v = e.target.value;
       if(type === 'number') { const n = v === '' ? 0 : Number(v.replace(/[^0-9]/g, '')); onChange(isNaN(n) ? 0 : n); } else { onChange(v); }
-    }} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-base font-bold outline-none focus:border-[#001E3C] text-[#001E3C] transition-all shadow-sm" />
+    }} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-base font-bold outline-none focus:border-[#001E3C] text-[#001E3C] transition-all shadow-sm text-left" />
   </div>
 );
 
