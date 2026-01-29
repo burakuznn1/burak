@@ -35,6 +35,13 @@ export interface Offer {
   status: 'Beklemede' | 'Reddedildi' | 'Kabul Edildi';
 }
 
+export interface PropertyActivity {
+  id: string;
+  date: string;
+  title: string;
+  description: string;
+}
+
 export interface SurveyResponse {
   priceSatisfaction: number; // 1-5
   paymentTermsSatisfaction: number; // 1-5
@@ -84,6 +91,7 @@ export interface Property {
   agentNotes: string;
   clientFeedback: ClientFeedback[];
   offers: Offer[];
+  activities: PropertyActivity[];
   surveyResponse?: SurveyResponse;
   agentName?: string;
   agentPhone?: string;
