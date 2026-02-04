@@ -6,7 +6,7 @@ import {
   Loader2, Wallet, Activity, ArrowLeft, History,
   Bell, Calendar as CalendarIcon, BarChart3, Phone, UserCheck,
   Camera, TrendingDown, Tag, Building, Map as MapIcon, ClipboardCheck, Clock,
-  PieChart, Filter, ChevronRight, X
+  PieChart, ChevronRight, X
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 import { Property, PropertyStats, Offer, Agent, Customer, ClientFeedback, PropertyActivity } from './types.ts';
@@ -139,7 +139,7 @@ const App: React.FC = () => {
       const sync = async () => {
         try { await supabase.from('portfolios').upsert({ id: 'main_database', data: fullData }); } catch (e) {}
       };
-      const timer = setTimeout(sync, 2500);
+      const timer = setTimeout(sync, 2000);
       return () => clearTimeout(timer);
     }
   }, [properties, agents, customers, calendarEvents, supabase, isAdminAuthenticated, isClientMode, isLoadingCloud, isDataInitialized]);
@@ -158,6 +158,36 @@ const App: React.FC = () => {
     });
     return notifications.sort((a, b) => b.feedback.id.localeCompare(a.feedback.id));
   }, [properties]);
+
+  // IMAGE OPTIMIZATION (Prevent data loss by resizing)
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 1200;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+          updatePropertyData('image', compressedBase64);
+        };
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -287,15 +317,6 @@ const App: React.FC = () => {
     alert("Talebiniz başarıyla iletildi.");
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => updatePropertyData('image', reader.result as string);
-      reader.readAsDataURL(file);
-    }
-  };
-
   const handleGenerateAISummary = async () => {
     if (!currentProperty) return;
     setIsGenerating(true);
@@ -351,7 +372,7 @@ const App: React.FC = () => {
               <NavItem icon={<CalendarIcon size={20}/>} label="Takvim" active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} />
               {selectedPropertyId && (
                 <>
-                  <div className="pt-6 pb-2 px-6 text-[10px] font-bold text-white/40 uppercase tracking-widest">Yönetim</div>
+                  <div className="pt-6 pb-2 px-6 text-[10px] font-bold text-white/40 uppercase tracking-widest">Seçili Mülk</div>
                   <NavItem icon={<LayoutDashboard size={20}/>} label="Raporu Gör" active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} />
                   <NavItem icon={<Edit3 size={20}/>} label="Düzenle" active={activeTab === 'edit'} onClick={() => setActiveTab('edit')} />
                 </>
@@ -394,8 +415,8 @@ const App: React.FC = () => {
             <h2 className="text-4xl font-black text-[#001E3C]">İş Takvimi & Randevular</h2>
             <div className="bg-white p-8 rounded-[2.5rem] border shadow-xl space-y-6">
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
-                  <AdminInput label="Tarih" type="date" value={newCalendarEvent.date} onChange={(v:any) => setNewCalendarEvent({...newCalendarEvent, date: v})} />
-                  <AdminInput label="Başlık" value={newCalendarEvent.title} onChange={(v:any) => setNewCalendarEvent({...newCalendarEvent, title: v})} />
+                  <AdminInput label="Randevu Tarihi" type="date" value={newCalendarEvent.date} onChange={(v:any) => setNewCalendarEvent({...newCalendarEvent, date: v})} />
+                  <AdminInput label="Konu / Başlık" value={newCalendarEvent.title} onChange={(v:any) => setNewCalendarEvent({...newCalendarEvent, title: v})} />
                </div>
                <button onClick={handleAddCalendarEvent} className="w-full py-4 bg-[#001E3C] text-white rounded-2xl font-black text-xs uppercase shadow-xl hover:bg-slate-800 transition-all">Randevu Ekle</button>
             </div>
@@ -410,7 +431,7 @@ const App: React.FC = () => {
                         <p className="text-[10px] opacity-50 uppercase">{ev.date.split('-')[1]}</p>
                         <p className="text-xl">{ev.date.split('-')[2]}</p>
                       </div>
-                      <div><h4 className="font-black text-lg text-[#001E3C]">{ev.title}</h4></div>
+                      <div><h4 className="font-black text-lg text-[#001E3C] uppercase">{ev.title}</h4></div>
                     </div>
                     <button onClick={() => setCalendarEvents(prev => prev.filter(x => x.id !== ev.id))} className="text-red-300 hover:text-red-500 transition-all"><Trash2/></button>
                   </div>
@@ -443,7 +464,7 @@ const App: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
               {customers.map(c => (
                 <div key={c.id} className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-lg group text-left">
-                  <div className="flex justify-between mb-4 text-left"><h4 className="font-black text-xl text-[#001E3C]">{c.name}</h4><button onClick={() => setCustomers(prev => prev.filter(x => x.id !== c.id))} className="text-red-300 hover:text-red-500 transition-all"><Trash2 size={20}/></button></div>
+                  <div className="flex justify-between mb-4 text-left"><h4 className="font-black text-xl text-[#001E3C] uppercase">{c.name}</h4><button onClick={() => setCustomers(prev => prev.filter(x => x.id !== c.id))} className="text-red-300 hover:text-red-500 transition-all"><Trash2 size={20}/></button></div>
                   <div className="space-y-2 text-sm font-bold text-slate-500 text-left">
                     <p>Telefon: <span className="text-[#001E3C]">{c.phone}</span></p>
                     <p>Bütçe: <span className="text-emerald-600 font-black">₺{c.budget?.toLocaleString()}</span></p>
@@ -492,7 +513,7 @@ const App: React.FC = () => {
             </div>
             <div className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-xl text-left">
               <h3 className="text-2xl font-black text-[#001E3C] mb-8 uppercase tracking-tighter">İşlem Hacmi & Performans</h3>
-              <p className="text-slate-400 font-bold italic">Portföyünüzdeki mülklerin toplam performansı ve pazar payı analizleri burada detaylandırılır.</p>
+              <p className="text-slate-400 font-bold italic">Portföyünüzdeki mülklerin genel performansı ve pazar payı analizleri burada detaylandırılır.</p>
               <div className="mt-10 h-64 bg-slate-50 rounded-[2rem] flex items-center justify-center border-2 border-dashed border-slate-200"><PieChart size={64} className="text-slate-200" /></div>
             </div>
           </div>
@@ -501,15 +522,15 @@ const App: React.FC = () => {
         {/* NOTIFICATIONS TAB */}
         {activeTab === 'notifications' && isAdminAuthenticated && (
           <div className="max-w-4xl mx-auto space-y-10 animate-in slide-in-from-bottom-5 text-left">
-            <h2 className="text-4xl font-black text-[#001E3C]">Bildirimler / Müşteri Talepleri</h2>
-            <div className="space-y-4">
+            <h2 className="text-4xl font-black text-[#001E3C]">Müşteri Talepleri</h2>
+            <div className="space-y-4 text-left">
               {allNotifications.length === 0 ? (
-                <div className="bg-white p-20 rounded-[3rem] text-center border text-slate-300 font-bold italic">Henüz bir talep bulunmuyor.</div>
+                <div className="bg-white p-20 rounded-[3rem] text-center border border-slate-100 shadow-xl"><Bell size={64} className="mx-auto text-slate-200 mb-4"/><p className="text-slate-400 font-black italic">Henüz bir talep bulunmuyor.</p></div>
               ) : (
                 allNotifications.map((notif, idx) => (
-                  <div key={idx} className="bg-white p-8 rounded-[2.5rem] border shadow-xl flex flex-col md:flex-row justify-between items-start gap-6">
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-3"><span className="text-[10px] font-black bg-blue-50 text-[#001E3C] px-3 py-1 rounded-full uppercase">{notif.propId}</span><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{notif.feedback.date}</span></div>
+                  <div key={idx} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-xl flex flex-col md:flex-row justify-between items-start gap-6 hover:border-blue-200 transition-all text-left">
+                    <div className="space-y-3 text-left">
+                      <div className="flex items-center gap-3 text-left"><span className="text-[10px] font-black bg-blue-50 text-[#001E3C] px-3 py-1 rounded-full uppercase">{notif.propId}</span><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{notif.feedback.date}</span></div>
                       <h4 className="font-black text-xl text-[#001E3C]">{notif.propTitle}</h4>
                       <p className="text-slate-600 font-bold italic leading-relaxed text-left">"{notif.feedback.message}"</p>
                       {notif.feedback.requestedPrice && <p className="text-emerald-600 font-black text-xs uppercase">Fiyat Talebi: ₺{notif.feedback.requestedPrice.toLocaleString()}</p>}
@@ -562,7 +583,7 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {/* EDIT SECTION - ALL FEATURES FIXED */}
+        {/* EDIT SECTION */}
         {activeTab === 'edit' && currentProperty && isAdminAuthenticated && (
           <div className="max-w-4xl mx-auto space-y-12 animate-in slide-in-from-right-10 pb-20 text-left">
              <div className="flex justify-between items-center text-left">
@@ -722,7 +743,7 @@ const App: React.FC = () => {
                 </button>
              </div>
 
-             {/* Stat Cards Top (General Stats) */}
+             {/* Stat Cards Top */}
              <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 text-left">
                 <DashboardStat label="Toplam Görüntülenme" value={statsTotals.views.toLocaleString()} icon={<Eye size={32}/>} color="blue" />
                 <DashboardStat label="Favoriye Ekleme" value={statsTotals.favs.toLocaleString()} icon={<Heart size={32}/>} color="red" />
@@ -730,35 +751,35 @@ const App: React.FC = () => {
                 <DashboardStat label="Telefonla Arama" value={statsTotals.calls.toLocaleString()} icon={<Phone size={32}/>} color="indigo" />
              </div>
 
-             {/* MONTHLY PERFORMANCE CARDS */}
+             {/* Monthly Stats */}
              <div className="space-y-10 text-left">
-                <div className="flex items-center gap-4 border-l-8 border-[#001E3C] pl-6 text-left"><h3 className="text-3xl lg:text-4xl font-black uppercase tracking-tighter text-[#001E3C] text-left">Aylık Performans Özeti</h3></div>
+                <div className="flex items-center gap-4 border-l-8 border-[#001E3C] pl-6 text-left"><h3 className="text-3xl lg:text-4xl font-black uppercase tracking-tighter text-[#001E3C]">Performans Verileri</h3></div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 text-left">
                    {(currentProperty.stats || []).map((s, idx) => (
                      <div key={idx} className="bg-white rounded-[2.5rem] overflow-hidden border border-slate-100 shadow-xl hover:shadow-2xl transition-all group text-left">
-                        <div className="bg-[#001E3C] p-5 text-white flex justify-between items-center text-left">
+                        <div className="bg-[#001E3C] p-5 text-white flex justify-between items-center">
                            <h4 className="font-black uppercase tracking-widest text-white">{s.month}</h4>
                            <Activity size={20} className="text-blue-400 opacity-50"/>
                         </div>
-                        <div className="p-8 space-y-6 text-left">
+                        <div className="p-8 space-y-6">
                            <div className="flex justify-between items-center border-b border-slate-50 pb-3 text-left">
-                              <div className="flex items-center gap-3 text-left text-blue-600"><Eye size={20}/><span className="text-[10px] font-black uppercase text-slate-400">İzlenme</span></div>
+                              <div className="flex items-center gap-3 text-blue-600"><Eye size={20}/><span className="text-[10px] font-black uppercase text-slate-400">İzlenme</span></div>
                               <span className="font-black text-xl text-[#001E3C]">{s.views?.toLocaleString()}</span>
                            </div>
                            <div className="flex justify-between items-center border-b border-slate-50 pb-3 text-left">
-                              <div className="flex items-center gap-3 text-left text-red-600"><Heart size={20}/><span className="text-[10px] font-black uppercase text-slate-400">Favori</span></div>
+                              <div className="flex items-center gap-3 text-red-600"><Heart size={20}/><span className="text-[10px] font-black uppercase text-slate-400">Favori</span></div>
                               <span className="font-black text-xl text-[#001E3C]">{s.favorites?.toLocaleString()}</span>
                            </div>
                            <div className="flex justify-between items-center border-b border-slate-50 pb-3 text-left">
-                              <div className="flex items-center gap-3 text-left text-emerald-600"><MessageSquare size={20}/><span className="text-[10px] font-black uppercase text-slate-400">Mesaj</span></div>
+                              <div className="flex items-center gap-3 text-emerald-600"><MessageSquare size={20}/><span className="text-[10px] font-black uppercase text-slate-400">Mesaj</span></div>
                               <span className="font-black text-xl text-[#001E3C]">{s.messages?.toLocaleString()}</span>
                            </div>
                            <div className="flex justify-between items-center border-b border-slate-50 pb-3 text-left">
-                              <div className="flex items-center gap-3 text-left text-indigo-600"><Phone size={20}/><span className="text-[10px] font-black uppercase text-slate-400">Arama</span></div>
+                              <div className="flex items-center gap-3 text-indigo-600"><Phone size={20}/><span className="text-[10px] font-black uppercase text-slate-400">Arama</span></div>
                               <span className="font-black text-xl text-[#001E3C]">{s.calls?.toLocaleString()}</span>
                            </div>
                            <div className="flex justify-between items-center text-left">
-                              <div className="flex items-center gap-3 text-left text-amber-600"><MapPin size={20}/><span className="text-[10px] font-black uppercase text-slate-400">Ziyaret</span></div>
+                              <div className="flex items-center gap-3 text-amber-600"><MapPin size={20}/><span className="text-[10px] font-black uppercase text-slate-400">Ziyaret</span></div>
                               <span className="font-black text-xl text-[#001E3C]">{s.visits?.toLocaleString()}</span>
                            </div>
                         </div>
@@ -767,63 +788,63 @@ const App: React.FC = () => {
                 </div>
              </div>
 
-             {/* MARKET ANALYSIS CARDS */}
+             {/* Market Analysis */}
              <div className="space-y-10 text-left">
-                <div className="flex items-center gap-4 border-l-8 border-[#001E3C] pl-6 text-left"><h3 className="text-3xl lg:text-4xl font-black uppercase tracking-tighter text-[#001E3C] text-left">Piyasa Analiz Raporu</h3></div>
+                <div className="flex items-center gap-4 border-l-8 border-[#001E3C] pl-6 text-left"><h3 className="text-3xl lg:text-4xl font-black uppercase tracking-tighter text-[#001E3C]">Piyasa Analiz Raporu</h3></div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 text-left">
-                   <div className="bg-white p-10 rounded-[2.5rem] shadow-xl border border-slate-50 space-y-4 text-left">
+                   <div className="bg-white p-10 rounded-[2.5rem] shadow-xl border border-slate-50 space-y-4">
                       <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600"><TrendingDown size={32}/></div>
-                      <div className="text-left text-left"><p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 text-left">Emsal Değer Ortalama</p><h4 className="text-2xl font-black text-[#001E3C] text-left">₺{currentProperty.market?.comparablePrice?.toLocaleString()}</h4></div>
+                      <div className="text-left"><p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Emsal Değer Ortalama</p><h4 className="text-2xl font-black text-[#001E3C]">₺{currentProperty.market?.comparablePrice?.toLocaleString()}</h4></div>
                    </div>
                    <div className="bg-white p-10 rounded-[2.5rem] shadow-xl border border-slate-50 space-y-4 text-left">
                       <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600"><Clock size={32}/></div>
-                      <div className="text-left text-left"><p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 text-left">Ort. Satış Süresi</p><h4 className="text-2xl font-black text-[#001E3C] text-left">{currentProperty.market?.avgSaleDurationDays} GÜN</h4></div>
+                      <div className="text-left"><p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Ort. Satış Süresi</p><h4 className="text-2xl font-black text-[#001E3C]">{currentProperty.market?.avgSaleDurationDays} GÜN</h4></div>
                    </div>
                    <div className="bg-white p-10 rounded-[2.5rem] shadow-xl border border-slate-50 space-y-4 text-left">
                       <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600"><Building size={32}/></div>
-                      <div className="text-left text-left"><p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 text-left">Binadaki Rakip İlanlar</p><h4 className="text-2xl font-black text-[#001E3C] text-left">{currentProperty.market?.buildingUnitsCount} ADET</h4></div>
+                      <div className="text-left"><p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Binadaki Rakip İlanlar</p><h4 className="text-2xl font-black text-[#001E3C]">{currentProperty.market?.buildingUnitsCount} ADET</h4></div>
                    </div>
                    <div className="bg-white p-10 rounded-[2.5rem] shadow-xl border border-slate-50 space-y-4 text-left">
                       <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center text-red-600"><MapIcon size={32}/></div>
-                      <div className="text-left text-left"><p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 text-left">Bölgedeki Rakip İlanlar</p><h4 className="text-2xl font-black text-[#001E3C] text-left">{currentProperty.market?.neighborhoodUnitsCount} ADET</h4></div>
+                      <div className="text-left"><p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Bölgedeki Rakip İlanlar</p><h4 className="text-2xl font-black text-[#001E3C]">{currentProperty.market?.neighborhoodUnitsCount} ADET</h4></div>
                    </div>
                 </div>
              </div>
 
-             {/* Fiyat Geçmişi */}
+             {/* Price History */}
              <div className="bg-white p-10 lg:p-14 rounded-[3rem] shadow-2xl border border-slate-50 space-y-10 text-left">
-                <div className="flex items-center gap-4 border-l-8 border-[#001E3C] pl-6 text-left"><h3 className="text-3xl lg:text-4xl font-black uppercase tracking-tighter text-[#001E3C] text-left">Fiyat Değişim Yolculuğu</h3></div>
-                <div className="flex flex-col sm:flex-row items-end justify-between gap-6 text-left">
-                    <div className="text-left text-left"><p className="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-1 block text-left">GÜNCEL LİSTE FİYATI</p><h4 className="text-4xl lg:text-7xl font-black text-[#001E3C] block tracking-tighter text-left">₺{currentProperty.currentPrice.toLocaleString()}</h4></div>
-                    <div className="text-emerald-700 bg-emerald-50 px-6 py-3 rounded-full font-black text-sm uppercase tracking-widest flex items-center gap-2 border border-emerald-100 shadow-sm text-left"><Tag size={20}/> AKTİF SATIŞTA</div>
+                <div className="flex items-center gap-4 border-l-8 border-[#001E3C] pl-6 text-left"><h3 className="text-3xl lg:text-4xl font-black uppercase tracking-tighter text-[#001E3C]">Fiyat Değişim Yolculuğu</h3></div>
+                <div className="flex flex-col sm:flex-row items-end justify-between gap-6">
+                    <div className="text-left"><p className="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-1 block">GÜNCEL LİSTE FİYATI</p><h4 className="text-4xl lg:text-7xl font-black text-[#001E3C] block tracking-tighter">₺{currentProperty.currentPrice.toLocaleString()}</h4></div>
+                    <div className="text-emerald-700 bg-emerald-50 px-6 py-3 rounded-full font-black text-sm uppercase tracking-widest flex items-center gap-2 border border-emerald-100 shadow-sm"><Tag size={20}/> AKTİF SATIŞTA</div>
                 </div>
-                <div className="space-y-4 text-left text-left">
+                <div className="space-y-4 text-left">
                   {(currentProperty.priceHistory || []).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((p, idx) => (
                     <div key={idx} className="flex justify-between items-center p-6 bg-slate-50 rounded-[2rem] border border-slate-100 transition-all hover:bg-white text-left">
-                       <div className="flex items-center gap-6 text-[#001E3C] text-left">
+                       <div className="flex items-center gap-6 text-[#001E3C]">
                           <History size={28} className="text-slate-400"/>
-                          <div className="text-left text-left text-left"><p className="font-black text-[#001E3C] text-2xl block text-left">₺{p.amount.toLocaleString()}</p><p className="text-xs font-bold text-slate-500 uppercase tracking-widest text-left">{p.date}</p></div>
+                          <div className="text-left"><p className="font-black text-[#001E3C] text-2xl block">₺{p.amount.toLocaleString()}</p><p className="text-xs font-bold text-slate-500 uppercase tracking-widest">{p.date}</p></div>
                        </div>
                     </div>
                   ))}
                 </div>
              </div>
 
-             {/* Teklifler & Danışman Görüşü */}
+             {/* Offers & Activities */}
              <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 text-left">
-                <div className="bg-white p-10 lg:p-14 rounded-[3rem] border border-slate-50 shadow-2xl space-y-10 text-left">
-                   <div className="flex items-center gap-5 border-b pb-8 text-[#001E3C] text-left"><Wallet size={48} className="text-emerald-500"/><h4 className="text-2xl lg:text-3xl font-black uppercase tracking-tighter text-[#001E3C] text-left">Resmi Teklifler</h4></div>
+                <div className="bg-white p-10 lg:p-14 rounded-[3rem] border border-slate-50 shadow-2xl space-y-10">
+                   <div className="flex items-center gap-5 border-b pb-8 text-[#001E3C]"><Wallet size={48} className="text-emerald-500"/><h4 className="text-2xl lg:text-3xl font-black uppercase tracking-tighter text-[#001E3C]">Resmi Teklifler</h4></div>
                    <div className="space-y-5 max-h-[450px] overflow-y-auto pr-4 scrollbar-thin text-left">
                       {(!currentProperty.offers || currentProperty.offers.length === 0) ? (
                         <div className="py-24 text-center text-slate-300 font-black italic text-xl">Henüz bir teklif kaydı bulunmuyor.</div>
                       ) : (
                         currentProperty.offers.map(offer => (
                           <div key={offer.id} className="flex items-center justify-between p-8 bg-slate-50 rounded-[2.5rem] border border-slate-100 transition-all hover:bg-white text-left block">
-                            <div className="flex items-center gap-5 text-left text-left text-left">
+                            <div className="flex items-center gap-5">
                               <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-2xl shadow-inner ${offer.status === 'Reddedildi' ? 'bg-red-50 text-red-400' : offer.status === 'Kabul Edildi' ? 'bg-emerald-50 text-emerald-600' : 'bg-white text-[#001E3C]'}`}>{offer.bidder.charAt(0)}</div>
-                              <div className="text-left text-left text-left text-left"><p className="font-black text-xl text-[#001E3C] uppercase text-left">{offer.bidder.substring(0,2)}***</p><p className={`text-[10px] font-black uppercase tracking-widest ${offer.status === 'Kabul Edildi' ? 'text-emerald-500' : offer.status === 'Reddedildi' ? 'text-red-400' : 'text-slate-400'}`}>{offer.status} • {offer.date}</p></div>
+                              <div className="text-left text-left"><p className="font-black text-xl text-[#001E3C] uppercase">{offer.bidder.substring(0,2)}***</p><p className={`text-[10px] font-black uppercase tracking-widest ${offer.status === 'Kabul Edildi' ? 'text-emerald-500' : offer.status === 'Reddedildi' ? 'text-red-400' : 'text-slate-400'}`}>{offer.status} • {offer.date}</p></div>
                             </div>
-                            <p className={`font-black text-2xl tracking-tighter ${offer.status === 'Reddedildi' ? 'text-red-300 line-through' : 'text-[#001E3C]'}`}>₺{offer.amount.toLocaleString()}</p>
+                            <p className={`font-black text-2xl tracking-tighter text-left ${offer.status === 'Reddedildi' ? 'text-red-300 line-through' : 'text-[#001E3C]'}`}>₺{offer.amount.toLocaleString()}</p>
                           </div>
                         ))
                       )}
@@ -832,36 +853,36 @@ const App: React.FC = () => {
 
                 <div className="bg-[#001E3C] p-12 lg:p-16 rounded-[4rem] text-white flex flex-col justify-between shadow-2xl relative overflow-hidden group text-left">
                    <div className="absolute -top-10 -right-10 p-10 opacity-5 group-hover:scale-110 transition-transform"><Award size={350}/></div>
-                   <div className="space-y-12 relative z-10 text-white text-left text-left text-left">
-                     <div className="flex items-center gap-5 text-white text-left text-left"><MessageCircle size={56} className="text-blue-400"/><h4 className="text-2xl lg:text-4xl font-black uppercase tracking-tighter text-white text-left">Danışman Görüşü</h4></div>
-                     <p className="text-2xl lg:text-4xl font-medium italic text-white/90 leading-relaxed text-left text-white text-left">"{currentProperty.agentNotes || 'Mülkünüzün satış süreci uzman ekibimiz tarafından titizlikle yönetilmektedir.'}"</p>
+                   <div className="space-y-12 relative z-10 text-white text-left">
+                     <div className="flex items-center gap-5 text-white"><MessageCircle size={56} className="text-blue-400"/><h4 className="text-2xl lg:text-4xl font-black uppercase tracking-tighter text-white">Danışman Görüşü</h4></div>
+                     <p className="text-2xl lg:text-4xl font-medium italic text-white/90 leading-relaxed text-left">"{currentProperty.agentNotes || 'Mülkünüzün satış süreci uzman ekibimiz tarafından titizlikle yönetilmektedir.'}"</p>
                    </div>
-                   <div className="mt-16 pt-12 border-t border-white/20 flex items-center justify-between relative z-10 text-white text-left text-left">
-                     <div className="flex items-center gap-8 text-white text-left text-left text-left">
+                   <div className="mt-16 pt-12 border-t border-white/20 flex items-center justify-between relative z-10 text-white">
+                     <div className="flex items-center gap-8 text-white">
                        <div className="w-20 h-20 lg:w-24 lg:h-24 bg-white/10 rounded-3xl flex items-center justify-center text-blue-300 shadow-inner"><UserCheck size={48}/></div>
-                       <div className="text-white text-left text-left text-left text-left text-left"><p className="text-[11px] font-black text-white/50 uppercase tracking-widest mb-1 text-white text-left text-left text-left">SORUMLU DANIŞMAN</p><p className="text-2xl lg:text-3xl font-black text-white uppercase text-left text-left text-left">{currentProperty.agentName || 'Can West'}</p></div>
+                       <div className="text-white text-left"><p className="text-[11px] font-black text-white/50 uppercase tracking-widest mb-1 text-white">SORUMLU DANIŞMAN</p><p className="text-2xl lg:text-3xl font-black text-white uppercase">{currentProperty.agentName || 'Can West'}</p></div>
                      </div>
                      {currentProperty.agentPhone && <a href={`tel:${currentProperty.agentPhone}`} className="w-20 h-20 lg:w-24 lg:h-24 bg-blue-500 text-white rounded-[2rem] flex items-center justify-center shadow-2xl active:scale-90 transition-all hover:bg-blue-600 text-left"><Phone size={40}/></a>}
                    </div>
                 </div>
              </div>
 
-             {/* Yapılan İşlemler (Zaman Çizelgesi) */}
-             <div className="space-y-10 text-left text-left">
-                <div className="flex items-center gap-4 border-l-8 border-[#001E3C] pl-6 text-left"><h3 className="text-3xl lg:text-4xl font-black uppercase tracking-tighter text-[#001E3C] text-left">Süreç ve Aksiyonlar</h3></div>
+             {/* Timeline */}
+             <div className="space-y-10 text-left">
+                <div className="flex items-center gap-4 border-l-8 border-[#001E3C] pl-6 text-left"><h3 className="text-3xl lg:text-4xl font-black uppercase tracking-tighter text-[#001E3C]">Süreç ve Aksiyonlar</h3></div>
                 <div className="relative space-y-8 before:absolute before:inset-0 before:ml-5 before:h-full before:w-0.5 before:bg-slate-200 lg:before:ml-8 text-left text-left">
                    {(!currentProperty.activities || currentProperty.activities.length === 0) ? (
-                     <div className="bg-white p-12 rounded-[2.5rem] border text-center text-slate-300 font-bold italic">İşlem günlüğü yakında güncellenecektir.</div>
+                     <div className="bg-white p-12 rounded-[2.5rem] border text-center text-slate-300 font-bold italic text-left">İşlem günlüğü yakında güncellenecektir.</div>
                    ) : (
                      currentProperty.activities.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((act) => (
                        <div key={act.id} className="relative flex items-start gap-8 lg:gap-12 animate-in slide-in-from-left-5 text-left text-left">
-                          <div className="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#001E3C] text-white shadow-xl lg:h-16 lg:w-16 ring-8 ring-[#F8FAFC] text-left text-left text-left"><ClipboardCheck size={28} /></div>
-                          <div className="flex-1 bg-white p-6 lg:p-10 rounded-[2rem] border border-slate-100 shadow-xl text-left text-left text-left">
-                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 text-left text-left">
-                                <h4 className="text-lg lg:text-2xl font-black uppercase text-[#001E3C] text-left text-left">{act.title}</h4>
-                                <span className="px-4 py-1.5 bg-blue-50 text-[#001E3C] rounded-full text-[10px] font-black uppercase tracking-widest text-left text-left">{act.date}</span>
+                          <div className="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#001E3C] text-white shadow-xl lg:h-16 lg:w-16 ring-8 ring-[#F8FAFC] text-left"><ClipboardCheck size={28} /></div>
+                          <div className="flex-1 bg-white p-6 lg:p-10 rounded-[2rem] border border-slate-100 shadow-xl text-left">
+                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 text-left">
+                                <h4 className="text-lg lg:text-2xl font-black uppercase text-[#001E3C] text-left">{act.title}</h4>
+                                <span className="px-4 py-1.5 bg-blue-50 text-[#001E3C] rounded-full text-[10px] font-black uppercase tracking-widest text-left">{act.date}</span>
                              </div>
-                             <p className="text-slate-500 font-bold leading-relaxed italic text-sm lg:text-lg text-left text-left">"{act.description}"</p>
+                             <p className="text-slate-500 font-bold leading-relaxed italic text-sm lg:text-lg text-left">"{act.description}"</p>
                           </div>
                        </div>
                      ))
@@ -869,25 +890,25 @@ const App: React.FC = () => {
                 </div>
              </div>
 
-             {/* AI ANALYSIS DISPLAY */}
+             {/* AI Analysis */}
              {aiSummary && (
                <div className="bg-white p-12 lg:p-20 rounded-[4rem] lg:rounded-[6rem] shadow-2xl border border-blue-100 relative overflow-hidden text-left animate-in zoom-in duration-500 text-[#001E3C] text-left">
                   <div className="absolute top-0 right-0 p-12 opacity-5 text-left"><Sparkles size={200} className="text-amber-500"/></div>
                   <div className="relative z-10 space-y-12 text-left text-left">
-                    <h4 className="text-3xl lg:text-5xl font-black text-[#001E3C] flex items-center gap-5 uppercase tracking-tighter text-left text-left text-left"><Sparkles size={64} className="text-amber-500"/> Yapay Zeka Stratejik Analiz</h4>
-                    <div className="prose max-w-none text-[#001E3C] leading-relaxed font-bold text-xl lg:text-3xl italic whitespace-pre-line border-l-[12px] border-amber-400 pl-12 py-6 text-left text-left">"{aiSummary}"</div>
+                    <h4 className="text-3xl lg:text-5xl font-black text-[#001E3C] flex items-center gap-5 uppercase tracking-tighter text-left"><Sparkles size={64} className="text-amber-500"/> Yapay Zeka Stratejik Analiz</h4>
+                    <div className="prose max-w-none text-[#001E3C] leading-relaxed font-bold text-xl lg:text-3xl italic whitespace-pre-line border-l-[12px] border-amber-400 pl-12 py-6 text-left">"{aiSummary}"</div>
                   </div>
                </div>
              )}
 
-             {/* FEEDBACK FORM */}
-             <div className="bg-white p-10 lg:p-16 rounded-[3.5rem] shadow-2xl border border-slate-50 space-y-12 animate-in slide-in-from-bottom-5 text-left text-left">
-                <div className="flex items-center gap-5 border-b pb-8 text-[#001E3C] text-left text-left text-left text-left"><MessageSquare size={48} className="text-blue-500"/><h4 className="text-2xl lg:text-4xl font-black uppercase text-[#001E3C] tracking-tighter text-left text-left text-left">Talep / Not İlet</h4></div>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 text-left text-left text-left text-left">
-                  <div className="space-y-4 text-left text-left text-left text-left text-left"><label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-2 block text-left text-left text-left">Mesajınız</label><textarea value={clientFeedbackInput} onChange={(e) => setClientFeedbackInput(e.target.value)} className="w-full p-8 bg-slate-50 border rounded-[2.5rem] text-lg font-bold outline-none h-48 resize-none focus:border-[#001E3C] shadow-inner text-[#001E3C] text-left" placeholder="Stratejik görüşlerinizi buraya yazın..."></textarea></div>
-                  <div className="space-y-4 text-left text-left text-left text-left text-left"><label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-2 block text-left text-left text-left">Fiyat Revizyon Talebi (₺)</label><input type="text" value={clientRequestedPrice} onChange={(e) => setClientRequestedPrice(e.target.value.replace(/[^0-9]/g, ''))} placeholder="Örn: 18.000.000" className="w-full p-8 bg-slate-50 border rounded-[2.5rem] text-lg font-bold outline-none focus:border-[#001E3C] shadow-inner text-[#001E3C] text-left" /><div className="bg-blue-50 p-6 rounded-3xl text-sm font-bold text-blue-800 leading-relaxed border border-blue-100 mt-4 text-left text-left text-left">Görüşleriniz anında sorumlu danışmanımıza ve yönetici panelimize iletilecektir.</div></div>
+             {/* Feedback Form */}
+             <div className="bg-white p-10 lg:p-16 rounded-[3.5rem] shadow-2xl border border-slate-50 space-y-12 animate-in slide-in-from-bottom-5 text-left">
+                <div className="flex items-center gap-5 border-b pb-8 text-[#001E3C] text-left"><MessageSquare size={48} className="text-blue-500"/><h4 className="text-2xl lg:text-4xl font-black uppercase text-[#001E3C] tracking-tighter text-left">Talep / Not İlet</h4></div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 text-left">
+                  <div className="space-y-4 text-left"><label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-2 block text-left">Mesajınız</label><textarea value={clientFeedbackInput} onChange={(e) => setClientFeedbackInput(e.target.value)} className="w-full p-8 bg-slate-50 border rounded-[2.5rem] text-lg font-bold outline-none h-48 resize-none focus:border-[#001E3C] shadow-inner text-[#001E3C] text-left" placeholder="Stratejik görüşlerinizi buraya yazın..."></textarea></div>
+                  <div className="space-y-4 text-left"><label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-2 block text-left">Fiyat Revizyon Talebi (₺)</label><input type="text" value={clientRequestedPrice} onChange={(e) => setClientRequestedPrice(e.target.value.replace(/[^0-9]/g, ''))} placeholder="Örn: 18.000.000" className="w-full p-8 bg-slate-50 border rounded-[2.5rem] text-lg font-bold outline-none focus:border-[#001E3C] shadow-inner text-[#001E3C] text-left" /><div className="bg-blue-50 p-6 rounded-3xl text-sm font-bold text-blue-800 leading-relaxed border border-blue-100 mt-4 text-left">Görüşleriniz anında sorumlu danışmanımıza ve yönetici panelimize iletilecektir.</div></div>
                 </div>
-                <button onClick={handleSendFeedback} className="w-full py-7 bg-[#001E3C] text-white rounded-[2.5rem] font-black text-xl uppercase shadow-2xl hover:bg-slate-800 flex items-center justify-center gap-3 transition-all text-left text-left text-left"><Send size={24}/> TALEBİ GÖNDER</button>
+                <button onClick={handleSendFeedback} className="w-full py-7 bg-[#001E3C] text-white rounded-[2.5rem] font-black text-xl uppercase shadow-2xl hover:bg-slate-800 flex items-center justify-center gap-3 transition-all text-left"><Send size={24}/> TALEBİ GÖNDER</button>
              </div>
           </div>
         )}
